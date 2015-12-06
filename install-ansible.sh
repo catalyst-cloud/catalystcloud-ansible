@@ -2,7 +2,17 @@
 # This script installs the latest version of Ansible and the OpenStack
 # client libraries in an isolated python virtual environment.
 
-# Ensure Python virtualenv and pip are installed
+# Ensure python-dev is installed.
+if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
+  PKG_MANAGER="apt"
+  PACKAGE_NAME="python-dev"
+elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
+  PKG_MANAGER="yum"
+  PACKAGE_NAME="python-devel"
+fi
+sudo $PKG_MANAGER install $PACKAGE_NAME
+
+# Ensure Python virtualenv and pip are installed.
 if ! which pip; then
   echo "Could not find python pip on \$PATH"
   echo "Installing pip via easy_install (sudo password may be required)"
@@ -24,7 +34,7 @@ if ! which virtualenv; then
   fi
 fi
 
-# Create and activate virtual environment for Ansible
+# Create and activate virtual environment for Ansible.
 if ! virtualenv ansible; then
   echo "Failed to create virtual environment for ansible on current location."
   exit 1
@@ -32,12 +42,12 @@ fi
 source ansible/bin/activate
 
 # Install the latest version of Ansible
-if ! pip install ansible Jinja2 httplib2 six; then
+if ! pip install ansible Jinja2 httplib2 pycrypto six; then
   echo "Could not install the latest version of Ansible."
   exit 1
 fi
 
-# Install the shade library and the OpenStack client libraries
+# Install the shade library and the OpenStack client libraries.
 if ! pip install shade; then
   echo "Could not install the OpenStack client tools and shade"
   exit 1
