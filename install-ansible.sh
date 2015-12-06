@@ -5,12 +5,12 @@
 # Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGE_NAME="python-dev"
+  PACKAGES="python-dev gcc"
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
-  PACKAGE_NAME="python-devel"
+  PACKAGES="python-devel gcc"
 fi
-sudo $PKG_MANAGER install $PACKAGE_NAME
+sudo $PKG_MANAGER install $PACKAGES
 
 # Ensure Python virtualenv and pip are installed.
 if ! which pip; then
@@ -42,7 +42,7 @@ fi
 source ansible/bin/activate
 
 # Install the latest version of Ansible
-if ! pip install ansible Jinja2 httplib2 pycrypto six; then
+if ! pip install ansible Jinja2 httplib2 pycrypto markupsafe six; then
   echo "Could not install the latest version of Ansible."
   exit 1
 fi
