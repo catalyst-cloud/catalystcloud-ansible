@@ -22,9 +22,6 @@ help() {
 # Parse command line arguments
 VERSION="stable"
 while [ $# -ge 1 ]; do
-  echo "Current arg is $1"
-  echo "ARGS looks like $@"
-  echo "ARGC is $#"
   case $1 in 
     --)
       # no more arguments
