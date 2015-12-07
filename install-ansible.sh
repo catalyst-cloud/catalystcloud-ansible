@@ -93,8 +93,8 @@ fi
 
 # Install the selected version of Ansible.
 if [[ "$VERSION" == "latest" ]]; then
-  if [[ -d "ansible" ]]; then
-    rm -rf ansible
+  if [[ -d "ansible/ansible" ]]; then
+    rm -rf ansible/ansible
   fi
   if ! git clone git://github.com/ansible/ansible.git --recursive ansible/ansible; then
     echo "Could not install the latest version of Ansible."
