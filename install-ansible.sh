@@ -96,7 +96,6 @@ fi
 
 # Install the selected version of Ansible.
 if [[ "$VERSION" == "latest" ]]; then
-  cd ansible
   if [[ -d "ansible" ]]; then
     rm -rf ansible
   fi
@@ -125,7 +124,11 @@ echo ""
 echo "Ansible installed successfully!"
 echo "Please remember to activate its virtual environment before using it, by"
 echo "running the following command:"
-echo "source $PWD/ansible/bin/activate && source $PWD/ansible/ansible/hacking/env-setup"
+if [[ "$VERSION" == "stable" ]]; then
+  echo "source $PWD/ansible/bin/activate"
+else
+  echo "source $PWD/ansible/bin/activate && source $PWD/ansible/ansible/hacking/env-setup"
+fi
 echo ""
 exit 0
 
