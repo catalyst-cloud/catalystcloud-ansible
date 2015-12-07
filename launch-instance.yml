@@ -1,0 +1,71 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook demonstrates the basic interaction between Ansible's OpenStack
+# cloud module and the Catalyst Cloud. Ansible will pick up the OpenStack
+# environment variables from the operating system if an OpenStack RC file is
+# sourced before running the playbook. Alternatively, you can specify the
+# OpenStack authentication variables and refer to them when using the os_auth
+# module.
+
+- name: Deploy a cloud instance in OpenStack
+  hosts: localhost
+  vars: 
+    # OpenStack authentication variables (not required if RC sourced)
+    os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
+    os_region: nz-por-1
+    os_az: nz-por-1a
+    os_project_name: projectname
+    os_username: username
+    os_password: password
+    # Attributes used for launching the compute instance (required)
+    image: ubuntu-14.04-x86_64
+    private_net: front-end
+    key_name: keyname
+  tasks:
+    #- name: Fetch information about the Catalyst Cloud
+    #  os_client_config:
+    #    clouds:
+    #      - catalyst_cloud
+
+    # If you have sourced an OpenStack RC file, connecting to the Catalyst
+    # Cloud is as simple as running the os_auth module with no additional
+    # parameters.
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    # If you have not sourced an OpenStack RC file, you will need to pass a few
+    # mandatory authentication attributes, as demonstrated below.
+    #- name: Connect to the Catalyst Cloud
+    #  os_auth:
+    #    auth:
+    #      auth_url: "{{ os_auth_url }}"
+    #      username: "{{ os_username }}"
+    #      password: "{{ os_password }}"
+    #      project_name: "{{ os_project_name }}"
+
+    # The service catalog is stored on a variable called service_catalog. The
+    # task below prints it out as debug information, in case you need it.
+    #- name: Print the service catalog as debug information
+    #  debug: var=service_catalog
+
+    - name: Create a compute instance on the Catalyst Cloud
+      os_server:
+        # Since we have authenticated on the previous task, there is not need
+        # to authenticate again on this task. However, if this was the only
+        # task we intended to run, we could create the instance an authenticate
+        # all at once.
+        #auth:
+        #  auth_url: "{{ os_auth_url }}"
+        #  username: "{{ os_username }}"
+        #  password: "{{ os_password }}"
+        #  project_name: "{{ os_project_name }}"
+        state: present
+        name: webserver
+        image: "{{ image }}"
+        key_name: "{{ key_name }}"
+        flavor: "c1.c1r1"
+        nics:
+          - net-name: "{{ private_net }}"
+        security_groups: default
+
