@@ -5,10 +5,10 @@
 # Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGES="python-dev gcc"
+  PACKAGES="python-dev gcc git"
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
-  PACKAGES="python-devel gcc"
+  PACKAGES="python-devel gcc git"
 fi
 sudo $PKG_MANAGER install $PACKAGES
 
@@ -41,10 +41,24 @@ if ! virtualenv ansible; then
 fi
 source ansible/bin/activate
 
-# Install the latest version of Ansible
-if ! pip install ansible Jinja2 httplib2 pycrypto markupsafe six; then
-  echo "Could not install the latest version of Ansible."
+# Install the dependencies version of Ansible.
+if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe; then
+  echo "Could not install the dependenceis for Ansible."
   exit 1
+fi
+
+# Install the selected version of Ansible.
+if [[ "$1" == "latest" ]]; then
+  cd ansible
+  if ! git clone git://github.com/ansible/ansible.git --recursive; then
+    echo "Could not install the latest version of Ansible."
+    exit 1
+  fi
+else
+  if ! pip install ansible; then
+    echo "Could not install the stable version of Ansible."
+    exit 1
+  fi
 fi
 
 # Install the shade library and the OpenStack client libraries.
@@ -53,9 +67,10 @@ if ! pip install shade; then
   exit 1
 fi
 
+echo ""
 echo "Ansible installed successfully!"
-echo "Please remember to activate its virtual environment before using it:"
-echo "source $PWD/ansible/bin/activate"
-
+echo "Please remember to activate its virtual environment before using it, by"
+echo "running the following command:"
+echo "source $PWD/ansible/bin/activate && source $PWD/ansible/ansible/hacking/env-setup" 
 exit 0
 
