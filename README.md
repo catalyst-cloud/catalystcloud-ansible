@@ -8,7 +8,7 @@ More information on the Catalyst Cloud can be found at:
 http://catalyst.net.nz/cloud
 
 The documentation for the Catalyst Cloud can be found at:
-http://docs.catalystcloud.io/cloud-orchestration.html
+http://docs.catalystcloud.io
 
 The documentation for Ansible can be found at:
 http://docs.ansible.com/ansible/index.html
