@@ -10,6 +10,7 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
   PACKAGES="python-devel gcc git"
 fi
+sudo $PKG_MANAGER update
 sudo $PKG_MANAGER install $PACKAGES
 
 # Ensure Python virtualenv and pip are installed.
@@ -50,6 +51,9 @@ fi
 # Install the selected version of Ansible.
 if [[ "$1" == "latest" ]]; then
   cd ansible
+  if [[ -d "ansible" ]]; then
+    rm -rf ansible
+  fi
   if ! git clone git://github.com/ansible/ansible.git --recursive; then
     echo "Could not install the latest version of Ansible."
     exit 1
