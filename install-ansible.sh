@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # This script installs the latest version of Ansible and the OpenStack
 # client libraries in an isolated python virtual environment.
 
@@ -22,7 +23,7 @@ help() {
 # Parse command line arguments
 VERSION="stable"
 while [ $# -ge 1 ]; do
-  case $1 in 
+  case $1 in
     --)
       # no more arguments
       shift
@@ -30,15 +31,15 @@ while [ $# -ge 1 ]; do
       ;;
     -v|--version)
       VERSION="$2"
-      echo $VERSION
-      shift 
+      echo "$VERSION"
+      shift
       ;;
     -h|--help)
       help
       exit 0
       ;;
     *)
-      echo "Unkown argument $1"
+      echo "Unknown argument $1"
       exit 1
       ;;
   esac
@@ -80,14 +81,14 @@ fi
 
 # Create and activate virtual environment for Ansible.
 if ! virtualenv ansible; then
-  echo "Failed to create virtual environment for ansible on current location."
+  echo "Failed to create virtual environment for Ansible on current location."
   exit 1
 fi
 source ansible/bin/activate
 
 # Install the dependencies version of Ansible.
 if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe; then
-  echo "Could not install the dependenceis for Ansible."
+  echo "Could not install the dependencies for Ansible."
   exit 1
 fi
 
@@ -106,7 +107,7 @@ elif [[ "$VERSION" == "stable" ]]; then
     exit 1
   fi
 else
-  echo "Unkown version: $VERSION."
+  echo "Unknown version: $VERSION."
   echo "Valid versions are stable and latest."
   exit 1
 fi
@@ -117,7 +118,7 @@ if ! pip install shade; then
   exit 1
 fi
 
-echo ""
+echo
 echo "Ansible installed successfully!"
 echo "Please remember to activate its virtual environment before using it, by"
 echo "running the following command:"
@@ -126,6 +127,5 @@ if [[ "$VERSION" == "stable" ]]; then
 else
   echo "source $PWD/ansible/bin/activate && source $PWD/ansible/ansible/hacking/env-setup"
 fi
-echo ""
+echo
 exit 0
-
