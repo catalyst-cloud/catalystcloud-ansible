@@ -10,7 +10,7 @@
 
 - name: Deploy a cloud instance in OpenStack
   hosts: localhost
-  vars: 
+  vars:
     # OpenStack authentication variables (not required if RC sourced)
     os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
     os_region: nz-por-1
