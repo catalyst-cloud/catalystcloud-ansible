@@ -86,7 +86,7 @@ if ! virtualenv ansible; then
 fi
 source ansible/bin/activate
 
-# Install the dependencies version of Ansible.
+# Install the dependencies for Ansible.
 if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe; then
   echo "Could not install the dependencies for Ansible."
   exit 1
