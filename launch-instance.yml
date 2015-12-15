@@ -20,7 +20,7 @@
     os_password: password
     # Attributes used for launching the compute instance (required)
     image: ubuntu-14.04-x86_64
-    private_net: front-end
+    private_net: private-net
     key_name: keyname
   tasks:
     #- name: Fetch information about the Catalyst Cloud
