@@ -9,7 +9,7 @@
 
 - name: Deploy a cloud instance in OpenStack
   hosts: localhost
-  vars: 
+  vars:
     # OpenStack authentication variables (not required if RC sourced)
     os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
     os_region: nz-por-1
@@ -17,6 +17,9 @@
     os_project_name: projectname
     os_username: username
     os_password: password
+    # Required variables
+    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+
   tasks:
     #- name: Fetch information about the Catalyst Cloud
     #  os_client_config:
@@ -42,24 +45,46 @@
     - name: Create a network
       os_network:
         state: present
-        name: ansible-net
+        name: private-net
 
     - name: Create a subnet
       os_subnet:
         state: present
-        name: ansible-net
-        network_name: ansible-net
-        cidr: 192.168.30.0/24
+        name: private-subnet
+        network_name: private-net
+        cidr: 10.0.0.0/24
         dns_nameservers:
           - 202.78.247.197
           - 202.78.247.198
           - 202.78.247.199
+        allocation_pool_start: 10.0.0.10
+        allocation_pool_end: 10.0.0.200
 
     - name: Create a router
       os_router:
         state: present
-        name: ansible-router
+        name: border-router
         network: public-net
         interfaces:
-          - ansible-net
+          - private-subnet
 
+    - name: Create a security group
+      os_security_group:
+        state: present
+        name: first-instance
+        description: network access for our first instance.
+
+    - name: Create a security group rule for ssh access
+      os_security_group_rule:
+        state: present
+        security_group: first-instance
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: 0.0.0.0/0
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: first-instance-key
+        public_key_file: "{{ ssh_public_key }}"

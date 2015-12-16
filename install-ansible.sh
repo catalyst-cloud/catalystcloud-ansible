@@ -81,7 +81,7 @@ fi
 
 # Create and activate virtual environment for Ansible.
 if ! virtualenv ansible; then
-  echo "Failed to create virtual environment for Ansible on current location."
+  echo "Failed to create virtual environment for Ansible at current location."
   exit 1
 fi
 source ansible/bin/activate
