@@ -21,7 +21,9 @@
     # Attributes used for launching the compute instance (required)
     image: ubuntu-14.04-x86_64
     private_net: private-net
-    key_name: keyname
+    key_name: first-instance-key
+    instance_name: first-instance
+    flavor: c1.c1r1
   tasks:
     #- name: Fetch information about the Catalyst Cloud
     #  os_client_config:
@@ -61,11 +63,14 @@
         #  password: "{{ os_password }}"
         #  project_name: "{{ os_project_name }}"
         state: present
-        name: webserver
+        name: "{{ instance_name }}"
         image: "{{ image }}"
         key_name: "{{ key_name }}"
-        flavor: "c1.c1r1"
+        flavor: "{{ flavor }}"
         nics:
           - net-name: "{{ private_net }}"
-        security_groups: default
+        security_groups: default,first-instance
 
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ instance_name }}"
