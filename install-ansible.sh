@@ -31,7 +31,6 @@ while [ $# -ge 1 ]; do
       ;;
     -v|--version)
       VERSION="$2"
-      echo "$VERSION"
       shift
       ;;
     -h|--help)
@@ -45,6 +44,8 @@ while [ $# -ge 1 ]; do
   esac
   shift
 done
+
+echo "Installing $VERSION version of Ansible"
 
 # Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
