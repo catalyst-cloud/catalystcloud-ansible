@@ -74,3 +74,8 @@
     - name: Assign a floating IP
       os_floating_ip:
         server: "{{ instance_name }}"
+      register: floating_ip_info
+
+    - name: Output floating IP
+      debug:
+        var: floating_ip_info.floating_ip.floating_ip_address
