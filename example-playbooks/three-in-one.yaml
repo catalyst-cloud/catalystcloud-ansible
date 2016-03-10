@@ -1,0 +1,199 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an rc file has been sourced
+
+- name: Deploy three different cloud instances
+  hosts: localhost
+  vars:
+    # change or override at runtime using --extra-vars
+    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change as required
+    image: ubuntu-14.04-x86_64
+    router_name: example-router
+    private_net: example-net
+    private_subnet: example-subnet
+    key_name: example-key
+    flavor: c1.c1r1
+    subnet_first_octets: 10.0.0
+    # instance configuration
+    instances:
+      - instance_name: node-one
+        instance_group: webserver
+        instance_security_group:
+          name: node-one-sg
+          rules:
+            - port_range_max: 22
+              port_range_min: 22
+              remote_ip_prefix: 202.78.240.0/28
+            - port_range_max: 80
+              port_range_min: 80
+              remote_ip_prefix: 202.78.240.7/32
+      - instance_name: node-two
+        instance_group: barserver
+        instance_security_group:
+          name: node-two-sg
+          rules:
+            - port_range_max: 22
+              port_range_min: 22
+              remote_ip_prefix: 202.78.240.7/32
+            - port_range_max: 80
+              port_range_min: 80
+              remote_ip_prefix: 202.78.240.7/32
+      - instance_name: node-three
+        instance_group: fooserver
+        instance_security_group:
+          name: node-three-sg
+          rules:
+            - port_range_max: 22
+              port_range_min: 22
+              remote_ip_prefix: 202.78.240.0/28
+            - port_range_max: 80
+              port_range_min: 80
+              remote_ip_prefix: 0.0.0.0/0
+            - port_range_max: 433
+              port_range_min: 433
+              remote_ip_prefix: 0.0.0.0/0
+    # no changes required after this
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Define Nameservers for Porirua region
+      set_fact:
+        nameservers: [202.78.247.197, 202.78.247.198, 202.78.247.199]
+      when: region == "nz-por-1"
+
+    - name: Define Nameservers for Wellington region
+      set_fact:
+        nameservers: [202.78.240.213, 202.78.240.214, 202.78.240.215]
+      when: region == "nz_wlg_2"
+
+    - name: Create a network
+      os_network:
+        state: present
+        name: "{{ private_net }}"
+
+    - name: Create a subnet in {{ region }}
+      os_subnet:
+        state: present
+        name: "{{ private_subnet }}"
+        network_name: "{{ private_net }}"
+        cidr: "{{ subnet_first_octets }}.0/24"
+        dns_nameservers: "{{ nameservers }}"
+        allocation_pool_start: "{{ subnet_first_octets }}.10"
+        allocation_pool_end: "{{ subnet_first_octets }}.200"
+
+    - name: Create a router
+      os_router:
+        state: present
+        name: "{{ router_name }}"
+        network: public-net
+        interfaces:
+          - "{{ private_subnet }}"
+
+    - name: Create the security groups
+      os_security_group:
+        state: present
+        name: "{{ item.instance_security_group.name }}"
+        description: "Network access for {{ item.instance_name }}."
+      with_items: "{{ instances }}"
+
+    - name: Create the security group rules
+      os_security_group_rule:
+        state: present
+        security_group: "{{ item.0.instance_security_group.name }}"
+        protocol: tcp
+        port_range_min: "{{ item.1.port_range_min }}"
+        port_range_max: "{{ item.1.port_range_max }}"
+        remote_ip_prefix: "{{ item.1.remote_ip_prefix }}"
+      with_subelements:
+        - "{{ instances }}"
+        - instance_security_group.rules
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: "{{ key_name }}"
+        public_key_file: "{{ ssh_public_key }}"
+
+    - name: Create compute instances
+      os_server:
+        state: present
+        name: "{{ item.instance_name }}"
+        image: "{{ image }}"
+        key_name: "{{ key_name }}"
+        flavor: "{{ flavor }}"
+        nics:
+          - net-name: "{{ private_net }}"
+        security_groups: "default,{{ item.instance_security_group.name }}"
+      with_items: "{{ instances }}"
+
+
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ item.instance_name }}"
+      register: floating_ip_info
+      with_items: "{{ instances }}"
+
+# annoyingly verbose output
+#    - name: Output floating IPs
+#      debug:
+#        msg: "got floating ip {{ item.floating_ip.floating_ip_address }} for {{ item.item.instance_name }}"
+#      with_items: "{{ floating_ip_info.results }}"
+
+    - add_host: name={{ item.floating_ip.floating_ip_address }}
+                groups={{ item.item.instance_group }}
+                ansible_user=ubuntu
+                instance_name={{ item.item.instance_name }}
+      with_items: "{{ floating_ip_info.results }}"
+
+- name: Setup the webserver
+  hosts: webserver
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Install nginx web server
+      apt: pkg=nginx state=installed update_cache=true
+      notify:
+        - Start nginx
+    - name: Modify nginx index file
+      lineinfile: dest=/usr/share/nginx/html/index.html line="<p>Installed by ansible on {{ inventory_hostname }}</p>"
+
+  handlers:
+    - name: Start nginx
+      service: name=nginx state=started
+
+- name: Setup the fooserver
+  hosts: fooserver
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Install nginx web server
+      apt: pkg=nginx state=installed update_cache=true
+      notify:
+        - Start nginx
+    - name: Modify nginx index file
+      lineinfile: dest=/usr/share/nginx/html/index.html line="<p>Installed by ansible on {{ inventory_hostname }}</p>"
+
+  handlers:
+    - name: Start nginx
+      service: name=nginx state=started
+
+- name: Setup the barserver
+  hosts: barserver
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Install nginx web server
+      apt: pkg=nginx state=installed update_cache=true
+      notify:
+        - Start nginx
+    - name: Modify nginx index file
+      lineinfile: dest=/usr/share/nginx/html/index.html line="<p>Installed by ansible on {{ inventory_hostname }}</p>"
+
+  handlers:
+    - name: Start nginx
+      service: name=nginx state=started
