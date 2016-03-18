@@ -50,10 +50,10 @@ echo "Installing $VERSION version of Ansible"
 # Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGES="python-dev gcc git"
+  PACKAGES="python-dev python-setuptools python-pip gcc git"
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
-  PACKAGES="python-devel gcc git"
+  PACKAGES="python-devel python-setuptools python-pip gcc git"
 fi
 sudo $PKG_MANAGER update
 sudo $PKG_MANAGER -y install $PACKAGES
