@@ -56,7 +56,7 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PACKAGES="python-devel gcc git"
 fi
 sudo $PKG_MANAGER update
-sudo $PKG_MANAGER install $PACKAGES
+sudo $PKG_MANAGER -y install $PACKAGES
 
 # Ensure Python virtualenv and pip are installed.
 if ! which pip; then
