@@ -69,7 +69,7 @@
         flavor: "{{ flavor }}"
         nics:
           - net-name: "{{ private_net }}"
-        security_groups: default,first-instance
+        security_groups: default,first-instance-sg
 
     - name: Assign a floating IP
       os_floating_ip:
