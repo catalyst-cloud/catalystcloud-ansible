@@ -20,8 +20,8 @@
     os_password: password
     # Attributes used for launching the compute instance (required)
     image: ubuntu-14.04-x86_64
-    private_net: private-net
-    key_name: first-instance-key
+    private_network_name: private-net
+    keypair_name: first-instance-key
     instance_name: first-instance
     flavor: c1.c1r1
   tasks:
@@ -65,10 +65,10 @@
         state: present
         name: "{{ instance_name }}"
         image: "{{ image }}"
-        key_name: "{{ key_name }}"
+        key_name: "{{ keypair_name }}"
         flavor: "{{ flavor }}"
         nics:
-          - net-name: "{{ private_net }}"
+          - net-name: "{{ private_network_name }}"
         security_groups: default,first-instance-sg
 
     - name: Assign a floating IP

@@ -19,6 +19,15 @@
     os_password: password
     # Required variables
     ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    private_network_name: private-net
+    private_subnet_name: private-subnet
+    subnet_cidr: 10.0.0.0/24
+    subnet_pool_start: 10.0.0.10
+    subnet_pool_end: 10.0.0.200
+    nameservers: [202.78.247.197, 202.78.247.198, 202.78.247.199]
+    router_name: border-router
+    security_group_name: first-instance-sg
+    keypair_name: first-instance-key
 
   tasks:
     #- name: Fetch information about the Catalyst Cloud
@@ -45,39 +54,36 @@
     - name: Create a network
       os_network:
         state: present
-        name: private-net
+        name: "{{ private_network_name }}"
 
     - name: Create a subnet
       os_subnet:
         state: present
-        name: private-subnet
-        network_name: private-net
-        cidr: 10.0.0.0/24
-        dns_nameservers:
-          - 202.78.247.197
-          - 202.78.247.198
-          - 202.78.247.199
-        allocation_pool_start: 10.0.0.10
-        allocation_pool_end: 10.0.0.200
+        name: "{{ private_subnet_name }}"
+        network_name: "{{ private_network_name }}"
+        cidr: "{{ subnet_cidr }}"
+        dns_nameservers: "{{ nameservers }}"
+        allocation_pool_start: "{{ subnet_pool_start }}"
+        allocation_pool_end: "{{ subnet_pool_end }}"
 
     - name: Create a router
       os_router:
         state: present
-        name: border-router
+        name: "{{ router_name }}"
         network: public-net
         interfaces:
-          - private-subnet
+          - "{{ private_subnet_name }}"
 
     - name: Create a security group
       os_security_group:
         state: present
-        name: first-instance-sg
+        name: "{{ security_group_name }}"
         description: Network access for our first instance.
 
     - name: Create a security group rule for SSH access
       os_security_group_rule:
         state: present
-        security_group: first-instance-sg
+        security_group: "{{ security_group_name }}"
         protocol: tcp
         port_range_min: 22
         port_range_max: 22
@@ -86,5 +92,5 @@
     - name: Import an SSH keypair
       os_keypair:
         state: present
-        name: first-instance-key
+        name: "{{ keypair_name }}"
         public_key_file: "{{ ssh_public_key }}"
