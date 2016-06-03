@@ -24,6 +24,8 @@
     keypair_name: first-instance-key
     instance_name: first-instance
     flavor: c1.c1r1
+    security_group_name: first-instance-sg
+
   tasks:
     #- name: Fetch information about the Catalyst Cloud
     #  os_client_config:
@@ -69,7 +71,7 @@
         flavor: "{{ flavor }}"
         nics:
           - net-name: "{{ private_network_name }}"
-        security_groups: default,first-instance-sg
+        security_groups: "default,{{ security_group_name }}"
 
     - name: Assign a floating IP
       os_floating_ip:
