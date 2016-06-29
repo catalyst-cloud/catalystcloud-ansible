@@ -1,0 +1,99 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Deploy a cloud instance
+  hosts: localhost
+  vars:
+    # Required variables
+    ssh_public_key: /home/train/.ssh/id_rsa.pub
+    # Attributes used for launching the compute instance (required)
+    ssh_remote_cidr: 0.0.0.0/0
+    web_remote_cidr: 0.0.0.0/0
+    image: ubuntu-14.04-x86_64
+    private_net: private-net
+    key_name: yourname-first-instance-key
+    instance_name: yourname-first-instance
+    flavor: c1.c1r1
+    security_group_name: yourname-first-instance-sg
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: "Create the {{ security_group_name }} security group"
+      os_security_group:
+        state: present
+        name: "{{ security_group_name }}"
+        description: Network access for the interview help instance.
+
+    - name: Create a security group rule for SSH access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Create a security group rule for HTTP access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 80
+        port_range_max: 80
+        remote_ip_prefix: "{{ web_remote_cidr }}"
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: "{{ key_name }}"
+        public_key_file: "{{ ssh_public_key }}"
+
+    - name: Create a compute instance
+      os_server:
+        state: present
+        name: "{{ instance_name }}"
+        image: "{{ image }}"
+        key_name: "{{ key_name }}"
+        flavor: "{{ flavor }}"
+        nics:
+          - net-name: "{{ private_net }}"
+        security_groups: "default,{{ security_group_name }}"
+
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ instance_name }}"
+      register: floating_ip_info
+
+    - name: Output floating IP
+      debug:
+        var: floating_ip_info.floating_ip.floating_ip_address
+
+    - add_host: name={{ floating_ip_info.floating_ip.floating_ip_address }} groups=webserver ansible_user=ubuntu
+
+    - name: Remove floating ip from known hosts
+      known_hosts:
+        name: "{{ floating_ip_info.floating_ip.floating_ip_address }}"
+        state: absent
+
+- name: Configure the webserver
+  hosts: webserver
+  become: yes
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: "Wait for SSH banner on {{ inventory_hostname }}"
+      local_action: wait_for port=22 host="{{ inventory_hostname }}" search_regex=OpenSSH delay=5
+      become: False
+    - name: Install nginx web server
+      apt: pkg=nginx state=installed update_cache=true
+      notify:
+        - Start nginx
+    - meta: flush_handlers
+    - name: Copy the public directory
+      copy: src=/home/train/foobar/public/ dest=/usr/share/nginx/html owner=root group=root
+
+  handlers:
+    - name: Start nginx
+      service: name=nginx state=started
