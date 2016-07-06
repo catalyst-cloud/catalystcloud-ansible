@@ -24,7 +24,7 @@
       os_security_group:
         state: present
         name: "{{ security_group_name }}"
-        description: Network access for the interview help instance.
+        description: Network access for SoT Masterclass instance.
 
     - name: Create a security group rule for SSH access
       os_security_group_rule:
