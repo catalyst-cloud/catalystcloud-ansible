@@ -1,0 +1,24 @@
+[main]
+logdir=/var/log/puppet
+vardir=/var/lib/puppet
+ssldir=/var/lib/puppet/ssl
+rundir=/var/run/puppet
+factpath=$vardir/lib/facter
+prerun_command=/etc/puppet/etckeeper-commit-pre
+postrun_command=/etc/puppet/etckeeper-commit-post
+certname={{ ansible_hostname }}
+environment={{ puppet_environment }}
+environmentpath=$confdir/environments
+basemodulepath=$confdir/modules
+autosign=false
+
+[master]
+dns_alt_names = puppet,puppetmaster,{{ puppetmaster_hostname }}
+# ssl off, we are using webrick
+node_terminus = exec
+external_nodes = /etc/puppet/enc.sh
+hiera_config = /etc/hiera/hiera.yaml
+
+[agent]
+server = {{ puppetmaster_hostname }}
+daemonize = false

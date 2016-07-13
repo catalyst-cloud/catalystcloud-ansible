@@ -1,0 +1,37 @@
+---
+  - name: Install puppet packages
+    apt: package="{{ item }}"
+    with_items: [puppetmaster, puppet, jq]
+
+  # We run puppet on demand via ansible, so disable the agent daemon...
+  - name: Disable puppet agent
+    service: name=puppet state=stopped
+
+  # NB Our puppet conf forbids the agent from daemonizing
+  - name: Create puppet.conf
+    template: src=templates/puppet.conf.j2 dest=/etc/puppet/puppet.conf
+              owner=root group=root mode=0644
+    notify: restart puppetmaster
+
+  # Let puppet agent run again
+  - name: Enable puppet agent
+    shell: puppet agent --enable
+    become: yes
+
+  # Pass puppetmaster_purgessl=yes to the play, you can start from scratch
+  # and reintroduce everyone back to the puppet master again.
+  - name: Purge ssl data
+    file: path=/var/lib/puppet/ssl state=absent
+    become: yes
+    when: puppetmaster_purgessl
+    notify: restart puppetmaster
+
+  # We use a very simple external node classifier, see the script for more
+  # information
+  - name: Install enc
+    copy: src=files/enc.sh dest=/etc/puppet/enc.sh
+          mode=755 owner=root group=root
+
+  - name: Create environment
+    file: path="/etc/puppet/environments/{{ puppet_environment }}" state=directory
+          mode=755 owner=root group=root

@@ -1,0 +1,21 @@
+---
+# tasks for setting up a puppet client
+  - name: Install puppet packages
+    apt: package="{{ item }}"
+    with_items: [puppet, python-yaml]
+
+  - name: Disable puppet agent
+    service: name=puppet state=stopped
+
+  # NB puppet conf forbids the agent from daemonizing
+  - name: Create puppet.conf
+    template:
+      src: templates/puppet.conf.j2
+      dest: /etc/puppet/puppet.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Enable puppet agent
+    shell: puppet agent --enable
+    become: yes

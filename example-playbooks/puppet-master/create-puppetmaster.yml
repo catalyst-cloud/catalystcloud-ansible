@@ -1,0 +1,94 @@
+---
+- name: Create the static parts of the cluster
+  hosts: localhost
+  vars:
+    newhost_name: "{{ puppetmaster_hostname }}"
+
+  tasks:
+    - name: Cloud connect
+      os_auth:
+
+    - name: Create network
+      os_network: name="{{ network_name }}" state=present
+
+    - name: Create subnet
+      os_subnet: name="{{ subnet_name }}" state=present
+                 network_name="{{ network_name }}"
+                 cidr="{{ subnet_cidr }}"
+                 dns_nameservers="{{ nameservers }}"
+                 allocation_pool_start="{{ subnet_dhcp_start }}"
+                 allocation_pool_end="{{ subnet_dhcp_end }}"
+
+    - name: Create router
+      os_router:
+        state=present network=public-net
+        name="{{ router_name }}"
+        interfaces="{{ subnet_name }}"
+
+    - name: Create security groups
+      os_security_group:
+        state: present
+        name: "{{ item }}"
+      with_items: "{{ security_groups | map(attribute='group') | list | unique }}"
+
+    - name: Create security group rules
+      os_security_group_rule:
+        state: present
+        security_group: "{{ item.group }}"
+        protocol: "{{ item.proto }}"
+        port_range_min: "{{ item.port }}"
+        port_range_max: "{{ item.port }}"
+        remote_ip_prefix: "{{ item.cidr }}"
+      with_items: "{{ security_groups }}"
+
+    - name: Create port
+      os_port:
+        name: "{{ namespace }}puppet-port"
+        network: "{{ network_name }}"
+        fixed_ips:
+          - ip_address: "{{ puppetmaster_private_ip }}"
+        security_groups:
+          - "{{ namespace }}puppetmaster"
+          - "{{ namespace }}common"
+
+    - name: Create puppet master
+      os_server:
+        state: present
+        name: "{{puppetmaster_hostname}}"
+        image: "{{ os_image }}"
+        key_name: "{{ keypair_name }}"
+        flavor: "{{ puppetmaster_flavor }}"
+        userdata: "{{ lookup('template', 'templates/cloud-init.yml.j2') }}"
+        meta: "role=puppetmaster"
+        nics:
+          - port-name: "{{ namespace}}puppet-port"
+        floating_ips: "{{ public_ip }}"
+      register: newhost
+
+    - name: Wait for new host to come up
+      wait_for: host="{{ public_ip }}" port=22
+
+    - include: tasks/wait-for-cloud-init.yml cloud_host="{{ public_ip }}"
+
+    - name: Remove any previous host key
+      shell: "ssh-keygen -f ~/.ssh/known_hosts -R {{ public_ip }}"
+      ignore_errors: yes
+
+    - include: tasks/add-puppetmaster-to-inventory.yml
+
+- name: Configure the puppet master
+  hosts: puppetmaster
+  become: yes
+  tags: [puppetmaster-setup]
+  tasks:
+
+    - include: tasks/puppetmaster-setup.yml
+    - include: tasks/ansible-setup.yml
+    - include: tasks/copy-puppet-manifests.yml
+
+    - name: Add ubuntu user to openstackrc group
+      user: name=ubuntu groups=openstackrc
+
+  handlers:
+    - name: restart puppetmaster
+      service: name=puppetmaster state=restarted

@@ -1,0 +1,14 @@
+---
+ - file: path=/opt/ansible state=directory
+   become: yes
+
+ - name: Tar up local ansible files
+   delegate_to: localhost
+   become: no
+   shell: tar -czf /tmp/ansible-puppet-master.tar.gz --exclude modules .
+   args:
+     chdir: ./.
+
+ - name: Extract ansible files
+   become: yes
+   unarchive: copy=yes src=/tmp/ansible-puppet-master.tar.gz dest=/opt/ansible

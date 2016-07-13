@@ -1,0 +1,95 @@
+---
+- name: Create a new host, provision them with puppet
+  hosts: localhost
+
+  tasks:
+
+    - include: tasks/clean-previous-host-info.yml hostname="{{ newhost_name }}"
+
+    - name: Cloud connect
+      os_auth:
+
+    - name: Create keypair
+      os_keypair: name="{{ keypair_name }}" public_key_file="{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+
+    - name: Load role vars
+      include_vars: "{{ item }}"
+      with_first_found:
+       - files:
+         - "role_vars/{{ newhost_role }}.yml"
+         skip: true
+
+    - name: Create host
+      os_server:
+        state: present
+        auto_ip: false
+        name: "{{ newhost_name }}"
+        image: "{{ role_os_image | default(os_image) }}"
+        key_name: "{{ keypair_name }}"
+        flavor: "{{ role_flavor | default('c1.c1r1') }}"
+        userdata: "{{ lookup('template', 'templates/cloud-init.yml.j2') }}"
+        meta: "role={{ newhost_role }}"
+        nics:
+          - net-name: "{{ network_name }}"
+        security_groups:
+          - "{{ namespace }}common"
+      register: created
+
+    - name: Add new host to local /etc/hosts
+      become: yes
+      lineinfile: dest=/etc/hosts
+                  regexp="{{ newhost_name }}" line="{{ created.openstack.private_v4 }} {{ newhost_name }}"
+
+    - name: Wait for ssh to come up
+      wait_for: host="{{ created.openstack.private_v4 }}" port=22
+
+    - include: tasks/wait-for-cloud-init.yml cloud_host="{{ created.openstack.private_v4 }}"
+
+    - name: Add host to ansible inventory
+      add_host: name="{{ created.openstack.private_v4 }}"
+                ansible_user="{{ cloud_user }}"
+                ansible_hostname="{{ newhost_name }}"
+                groups="{{ newhost_name }}"
+
+- name: Set up and run puppet
+  hosts: ["{{ newhost_name }}"]
+  become: yes
+  tasks:
+
+    - name: remove any previous/failed ssl info
+      file: state=absent path=/var/lib/puppet/ssl
+
+    - include: tasks/puppet-setup.yml
+
+    - name: ask for a certificate
+      shell: puppet agent --test --waitforcert=0 --tags does-not-exist
+      ignore_errors: yes
+
+      # The next few tasks check that the cert we are about to sign is the one
+      # that was created on the new host.  This is a slightly paranoid check to
+      # make sure that we don't erroneously sign some forged request and then let
+      # them have their way with out secrets.
+    - name: make sure puppet-certs is writeable
+      delegate_to: localhost
+      file: path=./puppet-certs owner="{{ ansible_user }}" state=directory mode=0700
+      become: yes
+
+    - fetch:
+        dest=./puppet-certs/new-cert flat=yes src="/var/lib/puppet/ssl/certificate_requests/{{ newhost_name }}.pem"
+      notify: Remove fetched certificate requests
+
+    - name: check the certificate request matches the one in our ca
+      shell: "diff ./puppet-certs/new-cert /var/lib/puppet/ssl/ca/requests/{{ newhost_name }}.pem"
+      delegate_to: localhost
+
+    - shell: "puppet cert sign {{ newhost_name }}"
+      become: yes
+      delegate_to: localhost
+
+    - puppet:
+
+  handlers:
+
+    - name: Remove fetched certificate requests
+      delegate_to: localhost
+      file: path=./puppet-certs/new-cert state=absent

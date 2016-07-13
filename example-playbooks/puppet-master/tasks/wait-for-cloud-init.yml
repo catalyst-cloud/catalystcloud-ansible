@@ -1,0 +1,7 @@
+# wait_for does not work until python is installed - no python2 by
+# default in xenial cloud images.
+# This workaround is good enough for our case, but probably won't
+# work in all cases
+  - name: Wait for cloud init to finish
+    become: no
+    shell: "{{ ssh_hack_cmd }} {{ cloud_user}}@{{ cloud_host }} 'VAR=true ; while [ \"${VAR}\" == \"true\" ]  ; do grep \"finish: modules-final: SUCCESS\" /var/log/cloud-init.log && VAR=false  || sleep 1 ; done'"

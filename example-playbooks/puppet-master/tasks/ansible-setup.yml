@@ -1,0 +1,24 @@
+---
+ - name: Install ansible
+   apt: package={{ item }}
+   with_items: [ansible, python-shade, python-openstackclient, jq]
+
+ - name: Create a group for openstack rc
+   group: name=openstackrc
+
+ - name: Put puppet in the openstackrc group
+   user: name=puppet groups=openstackrc
+   notify: restart puppetmaster
+
+ - name: Create openstack.rc file
+   become: yes
+   template: dest=/etc/openstack.rc src=templates/openstack.rc.j2
+             mode=0440 owner=root group=openstackrc
+
+ - include: tasks/copy-ansible-files.yml
+
+ - name: Create a keypair for ubuntu user
+   become: no
+   shell: "ssh-keygen -P '' -f /home/ubuntu/.ssh/id_rsa"
+   args:
+     creates: /home/ubuntu/.ssh/id_rsa

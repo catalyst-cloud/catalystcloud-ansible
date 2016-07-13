@@ -1,0 +1,22 @@
+export OS_AUTH_URL={{ lookup('env', 'OS_AUTH_URL') }}
+
+# With the addition of Keystone we have standardized on the term **tenant**
+# as the entity that owns the resources.
+export OS_TENANT_ID={{ lookup('env', 'OS_TENANT_ID') }}
+export OS_TENANT_NAME={{ lookup('env', 'OS_TENANT_NAME') }}
+export OS_PROJECT_NAME={{ lookup('env', 'OS_PROJECT_NAME') }}
+
+export OS_USERNAME={{ lookup('env', 'OS_USERNAME') }}
+
+# With Keystone you pass the keystone password.
+
+{% if ansible_store_os_password %}
+export OS_PASSWORD={{ lookup('env', 'OS_PASSWORD') }}
+{% else %}
+echo "Please enter your OpenStack Password: "
+read -sr OS_PASSWORD_INPUT
+export OS_PASSWORD=$OS_PASSWORD_INPUT
+{% endif %}
+
+
+export OS_REGION_NAME={{ lookup('env', 'OS_REGION_NAME') }}

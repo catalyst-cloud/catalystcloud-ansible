@@ -1,0 +1,51 @@
+---
+
+#
+namespace: 'tut-'
+network_name: "{{ namespace }}net"
+subnet_prefix: 10.0.235
+
+subnet_name: "{{ network_name }}-net"
+subnet_cidr: "{{ subnet_prefix }}.0/24"
+subnet_dhcp_start: "{{ subnet_prefix }}.50"
+subnet_dhcp_end: "{{ subnet_prefix }}.200"
+
+router_name: "{{ network_name }}-router"
+
+os_image: ubuntu-16.04-x86_64
+
+puppet_environment: production
+
+puppetmaster_flavor: "c1.c1r2"
+puppetmaster_private_ip: "{{ subnet_prefix }}.10"
+puppetmaster_purgessl: False
+puppetmaster_hostname: "{{ namespace }}puppetmaster"
+
+# set to True if you're comfortable keeping your openstack password in a file
+# on the puppet master
+ansible_store_os_password: False
+
+nameservers: ["202.78.247.197", "202.78.247.198", "202.78.247.199"]
+
+security_groups:
+ - group: "{{ namespace }}puppetmaster"
+   proto: tcp
+   port: 8140
+   cidr: "{{ subnet_cidr }}"
+ - group: "{{ namespace }}puppetmaster"
+   proto: tcp
+   port: 22
+   cidr: "{{ remote_access_cidr }}"
+ - group: "{{ namespace }}common"
+   proto: tcp
+   port: 8140
+   cidr: "{{ subnet_cidr }}"
+ - group: "{{ namespace }}common"
+   proto: tcp
+   port: 22
+   cidr: "{{ puppetmaster_private_ip }}/32"
+
+# we use this to manually ssh to a box to wait for cloud init to complete
+ssh_hack_cmd: "ssh -o StrictHostKeyChecking=false -o UserKnownHostsFile=/dev/null"
+
+cloud_user: ubuntu
