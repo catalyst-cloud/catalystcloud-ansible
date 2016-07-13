@@ -1,0 +1,8 @@
+# you can use a full-blown inventory to pull hosts in, but this is simpler and
+# quicker and works well for this tutorial
+
+ - name: Add puppetmaster to inventory
+   add_host: name={{ public_ip }}
+             ansible_user=ubuntu
+             ansible_hostname="{{ puppetmaster_hostname }}"
+             groups=puppetmaster

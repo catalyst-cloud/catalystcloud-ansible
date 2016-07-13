@@ -1,0 +1,15 @@
+  - name: Remove old certificate (if it exists)
+    shell: "puppet cert list {{ hostname }} && puppet cert clean {{ hostname }} || true"
+    become: yes
+
+  - name: Restart puppet master
+    service: name=puppetmaster state=restarted
+    become: yes
+
+  - name: Remove previous/old ssh host key
+    known_hosts: name="{{ hostname }}" state=absent
+    become: no
+
+  - name: Remove host entry from local /etc/hosts
+    lineinfile: dest=/etc/hosts state=absent regexp="{{ hostname }}"
+    become: yes

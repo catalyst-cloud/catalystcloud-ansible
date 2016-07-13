@@ -1,0 +1,3 @@
+class roles::puppetmaster {
+
+}

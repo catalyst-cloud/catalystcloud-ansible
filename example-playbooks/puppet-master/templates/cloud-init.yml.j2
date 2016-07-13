@@ -1,0 +1,13 @@
+#cloud-config
+
+locale: en_NZ.UTF-8
+
+hostname: {{ newhost_name }}
+
+packages:
+ - python2.7
+ - python
+
+bootcmd:
+ - echo "127.0.0.1 {{ newhost_name }}" > /etc/hosts
+ - echo "{{ puppetmaster_private_ip }} {{ puppetmaster_hostname }}" >> /etc/hosts

@@ -1,0 +1,16 @@
+---
+- name: Add master in to inventory
+  hosts: localhost
+  tasks:
+    - include: tasks/add-puppetmaster-to-inventory.yml
+
+- name: Copy puppet manifests and ansible files
+  hosts: puppetmaster
+  tasks:
+
+    - include: tasks/copy-puppet-manifests.yml
+    - include: tasks/copy-ansible-files.yml
+
+    - puppet:
+      become: yes
+      when: (local_apply | default(false)) == true

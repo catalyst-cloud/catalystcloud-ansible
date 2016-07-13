@@ -1,0 +1,14 @@
+---
+# using copy is incredibly slow for large sets of files, so we tar it up from
+# local before extracting it in /etc/puppet
+
+ - name: Create tar
+   become: no
+   delegate_to: localhost
+   shell: "tar -czf /tmp/puppet-modules.tar.gz modules"
+   args:
+     chdir: "./"
+
+ - name: Extract puppet manifests
+   unarchive: dest=/etc/puppet src=/tmp/puppet-modules.tar.gz copy=yes
+   become: yes
