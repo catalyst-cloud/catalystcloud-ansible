@@ -88,7 +88,7 @@ fi
 source ansible/bin/activate
 
 # Install the dependencies for Ansible.
-if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe; then
+if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe pytz; then
   echo "Could not install the dependencies for Ansible."
   exit 1
 fi
