@@ -50,16 +50,35 @@ done
 
 echo "Installing $VERSION version of Ansible"
 
+check_debian_packages() {
+  PACKAGES=$1
+
+  for package in $PACKAGES; do
+    dpkg-query -Wf'${db:Status-abbrev}' $package 2>/dev/null | grep -q '^i'
+    if [ $? != 0 ]; then
+      return 1;
+    fi
+  done
+  return 0;
+}
+
+RUN_PACKAGE_MANAGER=true;
 # Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
   PACKAGES="python-dev python-setuptools python-pip gcc git libssl-dev libffi-dev"
+  if check_debian_packages "$PACKAGES"; then
+    RUN_PACKAGE_MANAGER=false;
+  fi
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
   PACKAGES="python-devel python-setuptools python-pip gcc git"
 fi
-sudo $PKG_MANAGER update
-sudo $PKG_MANAGER -y install $PACKAGES
+
+if [ "$RUN_PACKAGE_MANAGER" = true ]; then
+    echo sudo $PKG_MANAGER update
+    echo sudo $PKG_MANAGER -y install $PACKAGES
+fi
 
 # Ensure Python virtualenv and pip are installed.
 if ! which pip; then
