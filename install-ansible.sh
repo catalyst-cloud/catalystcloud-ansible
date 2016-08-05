@@ -20,6 +20,9 @@ help() {
 # Main()
 ################################################################################
 
+# Set Ansible python virtual environment name
+ANSIBLE_VENV="ansible-venv"
+
 # Parse command line arguments
 VERSION="stable"
 while [ $# -ge 1 ]; do
@@ -56,7 +59,7 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PACKAGES="python-devel python-setuptools python-pip gcc git"
 fi
 sudo $PKG_MANAGER update
-sudo $PKG_MANAGER -y install $PACKAGES
+sudo $PKG_MANAGER -y install "$PACKAGES"
 
 # Ensure Python virtualenv and pip are installed.
 if ! which pip; then
@@ -81,24 +84,32 @@ if ! which virtualenv; then
 fi
 
 # Create and activate virtual environment for Ansible.
-if ! virtualenv ansible; then
+if ! virtualenv "$ANSIBLE_VENV"; then
   echo "Failed to create virtual environment for Ansible at current location."
   exit 1
 fi
-source ansible/bin/activate
+source "$ANSIBLE_VENV/bin/activate"
 
-# Install the dependencies for Ansible.
-if ! pip install paramiko PyYAML Jinja2 httplib2 six pycrypto markupsafe; then
-  echo "Could not install the dependencies for Ansible."
+# Update pip to latest version.
+if ! pip install -U pip; then
+  echo "Could not update pip."
+  exit 1
+fi
+
+# Updating setuptools fixes this warning (see https://github.com/ansible/ansible/pull/16723)
+# [WARNING]: Optional dependency 'cryptography' raised an exception, falling back to 'Crypto'
+# Update setuptools to latest version.
+if ! pip install -U setuptools; then
+  echo "Could not update setuptools."
   exit 1
 fi
 
 # Install the selected version of Ansible.
 if [[ "$VERSION" == "latest" ]]; then
-  if [[ -d "ansible/ansible" ]]; then
-    rm -rf ansible/ansible
+  if [[ -d "$ANSIBLE_VENV/ansible" ]]; then
+    rm -rf "$ANSIBLE_VENV/ansible"
   fi
-  if ! git clone git://github.com/ansible/ansible.git --recursive ansible/ansible; then
+  if ! git clone git://github.com/ansible/ansible.git --recursive "$ANSIBLE_VENV/ansible"; then
     echo "Could not install the latest version of Ansible."
     exit 1
   fi
@@ -121,12 +132,13 @@ fi
 
 echo
 echo "Ansible installed successfully!"
-echo "Please remember to activate its virtual environment before using it, by"
-echo "running the following command:"
+echo
+echo "To activate run the following command:"
+echo
 if [[ "$VERSION" == "stable" ]]; then
-  echo "source $PWD/ansible/bin/activate"
+  echo "source $PWD/$ANSIBLE_VENV/bin/activate"
 else
-  echo "source $PWD/ansible/bin/activate && source $PWD/ansible/ansible/hacking/env-setup"
+  echo "source $PWD/$ANSIBLE_VENV/bin/activate && source $PWD/$ANSIBLE_VENV/ansible/hacking/env-setup"
 fi
 echo
 exit 0
