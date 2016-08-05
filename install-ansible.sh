@@ -56,7 +56,6 @@ check_debian_packages() {
   for package in $PACKAGES; do
     dpkg-query -Wf'${db:Status-abbrev}' $package 2>/dev/null | grep -q '^i'
     if [ $? != 0 ]; then
-      echo "$package = $?"
       return 1;
     fi
   done
