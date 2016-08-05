@@ -123,6 +123,15 @@ if ! pip install -U setuptools; then
   exit 1
 fi
 
+# Installing theese modules fixes Python urllib3 SNIMissingWarning and InsecurePlatformWarning
+# when running the opestack clients
+# https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning.
+# https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
+# This only runs on ubuntu 14.04, enable this for other distros as required
+if lsb_release -r -s | grep -q '14.04'; then
+  pip install pyopenssl ndg-httpsclient pyasn1
+fi
+
 # Install the selected version of Ansible.
 if [[ "$VERSION" == "latest" ]]; then
   if [[ -d "$ANSIBLE_VENV/ansible" ]]; then
