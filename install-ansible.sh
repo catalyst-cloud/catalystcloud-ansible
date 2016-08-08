@@ -102,8 +102,8 @@ if ! which virtualenv; then
   fi
 fi
 
-# Create and activate virtual environment for Ansible.
-if ! virtualenv "$ANSIBLE_VENV"; then
+# Create and activate a python2 virtual environment for Ansible.
+if ! virtualenv --python=python2 "$ANSIBLE_VENV"; then
   echo "Failed to create virtual environment for Ansible at current location."
   exit 1
 fi
