@@ -76,8 +76,8 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
 fi
 
 if [ "$RUN_PACKAGE_MANAGER" = true ]; then
-    echo sudo $PKG_MANAGER update
-    echo sudo $PKG_MANAGER -y install $PACKAGES
+    sudo $PKG_MANAGER update
+    sudo $PKG_MANAGER -y install $PACKAGES
 fi
 
 # Ensure Python virtualenv and pip are installed.
