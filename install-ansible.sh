@@ -141,6 +141,10 @@ if [[ "$VERSION" == "latest" ]]; then
     echo "Could not install the latest version of Ansible."
     exit 1
   fi
+  if ! pip install jinja2; then
+    echo "Could not install jinja2 as a dependency for Ansible."
+    exit 1
+  fi
 elif [[ "$VERSION" == "stable" ]]; then
   if ! pip install ansible; then
     echo "Could not install the stable version of Ansible."
