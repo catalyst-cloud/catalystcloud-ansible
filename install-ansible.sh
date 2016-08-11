@@ -15,13 +15,9 @@ help() {
   echo "-h, --help                       prints help information"
 }
 
-
 ################################################################################
 # Main()
 ################################################################################
-
-# Set Ansible python virtual environment name
-ANSIBLE_VENV="ansible-venv"
 
 # Parse command line arguments
 VERSION="stable"
@@ -47,6 +43,27 @@ while [ $# -ge 1 ]; do
   esac
   shift
 done
+
+# Set Ansible python virtual environment name
+ANSIBLE_VENV="ansible-venv"
+
+# check if we already have ansible installed when installing the stable version
+# abort or delete depending on the version we have installed
+if [[ "$VERSION" == "stable" ]]; then
+  ANSIBLE_VENV_BIN="$PWD/$ANSIBLE_VENV/bin/ansible"
+  if [[ -f $ANSIBLE_VENV_BIN ]]; then
+    # this may or may not be the latest stable version of ansible
+    STABLE_VERSION="2.1.1.0"
+    CURRENT_VERSION=$( $ANSIBLE_VENV_BIN --version | awk '/^ansible/{ print $2 }' )
+    if [ "${CURRENT_VERSION//.}" -lt "${STABLE_VERSION//.}" ]; then
+      echo "Deleting your install of Ansible $CURRENT_VERSION as a newer stable version is available"
+      rm -r "$PWD/$ANSIBLE_VENV"
+    else
+      echo "Aborting as Ansible $CURRENT_VERSION is already installed at $ANSIBLE_VENV_BIN"
+      exit 1
+    fi
+  fi
+fi
 
 echo "Installing $VERSION version of Ansible"
 
@@ -129,7 +146,10 @@ fi
 # https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
 # This only runs on ubuntu 14.04, enable this for other distros as required
 if lsb_release -r -s | grep -q '14.04'; then
-  pip install pyopenssl ndg-httpsclient pyasn1
+  if ! pip install pyopenssl ndg-httpsclient pyasn1; then
+    echo "Could not install extra python packages on 14.04."
+    exit 1
+  fi
 fi
 
 # Install the selected version of Ansible.
