@@ -7,7 +7,7 @@
 # playbook. Alternatively, you can specify the OpenStack authentication
 # variables and refer to them when using the os_auth module.
 
-- name: Deploy a cloud instance in OpenStack
+- name: Create a network in the Catalyst Cloud
   hosts: localhost
   vars:
     # OpenStack authentication variables (not required if RC sourced)
