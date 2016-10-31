@@ -1,0 +1,68 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook removes all artifacts created by the default version of the
+# scripts :
+# - create-network.yml
+# - create-instance.yml
+# From the "Launching your first instance - Using Ansible" examples at
+# http://docs.catalystcloud.io/first-instance/ansible.html
+#
+# Usage:
+#  ansible-playbook remove-instance.yml --extra-vars "floating_ip=<ip-address>"
+#
+# Where <ip-address> is the value returned by create-instance.yml script
+
+- name: Clean up artifacts from Launching your first instance - Using Ansible
+  hosts: localhost
+  vars:
+    # OpenStack authentication variables (not required if RC sourced)
+    os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
+    os_region: nz-por-1
+    os_az: nz-por-1a
+    os_project_name: projectname
+    os_username: username
+    os_password: password
+    # Attributes used for launching the compute instance (required)
+    private_network_name: private-net
+    router_name: border-router
+    security_group_name: first-instance-sg
+    keypair_name: first-instance-key
+    instance_name: first-instance
+
+  tasks:
+
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: remove first-instance floating_ip
+      os_floating_ip:
+        state: absent
+        purge: yes
+        floating_ip_address: "{{ floating_ip }}"
+        server:  "{{ instance_name }}"
+
+    - name: remove first-instance compute node
+      os_server:
+        state: absent
+        name: "{{ instance_name }}"
+
+    - name: remove first-instance keypair
+      os_keypair:
+        state: absent
+        name: "{{ keypair_name }}"
+
+    - name: remove first-instance router
+      os_router:
+        state: absent
+        name: "{{ router_name }}"
+
+    - name: remove first-instance network
+      os_network:
+        state: absent
+        name: "{{ private_network_name }}"
+
+    - name: remove first-instance security_group
+      os_security_group:
+        state: absent
+        name: "{{ security_group_name }}"
