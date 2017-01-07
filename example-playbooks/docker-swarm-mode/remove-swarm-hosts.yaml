@@ -1,0 +1,63 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an openstack rc file has been sourced
+
+- name: Deploy three networked host machines as swarm nodes
+  hosts: localhost
+  vars:
+    # change or override at runtime using --extra-vars
+    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change as required
+    keypair_name: swarm-key
+    router_name: swarm-router
+    private_network_name: swarm-net
+    security_group_name: swarm-sg
+    # instance configuration
+    instances:
+      - instance_name: manager1
+        instance_group: swarm-managers
+      - instance_name: worker1
+        instance_group: swarm-workers
+      - instance_name: worker2
+        instance_group: swarm-workers
+    # no changes required after this
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Remove swarm node compute instances
+      os_server:
+        name: "{{ item.instance_name }}"
+        state: absent
+      with_items: "{{ instances }}"
+
+    - name: Remove swarm keypair
+      os_keypair:
+        state: absent
+        name: "{{ keypair_name }}"
+
+    - name: Remove swarm router
+      os_router:
+        state: absent
+        name: "{{ router_name }}"
+
+    - name: Remove swarm network
+      os_network:
+        state: absent
+        name: "{{ private_network_name }}"
+
+    - name: Remove swarm security_group
+      os_security_group:
+        state: absent
+        name: "{{ security_group_name }}"
+
+    - name: Remove hosts from local ~/.ssh/config
+      blockinfile:
+        dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        state: absent
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.instance_name }} docker swarm node"
+      with_items: "{{ instances }}"
+

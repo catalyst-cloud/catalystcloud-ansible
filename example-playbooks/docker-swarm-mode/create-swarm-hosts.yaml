@@ -1,0 +1,198 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an openstack rc file has been sourced
+
+- name: Deploy three networked host machines as swarm nodes
+  hosts: localhost
+  vars:
+    # change or override at runtime using --extra-vars
+    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change as required
+    ssh_remote_cidr: 0.0.0.0/0
+    image: ubuntu-16.04-x86_64
+    router_name: swarm-router
+    private_network_name: swarm-net
+    private_subnet_name: swarm-subnet
+    keypair_name: swarm-key
+    flavor: c1.c1r1
+    subnet_first_octets: 192.168.99
+    security_group_name: swarm-sg
+    # instance configuration
+    instances:
+      - instance_name: manager1
+        instance_group: swarm-managers
+      - instance_name: worker1
+        instance_group: swarm-workers
+      - instance_name: worker2
+        instance_group: swarm-workers
+    # no changes required after this
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Define Nameservers for Porirua region
+      set_fact:
+        nameservers: [202.78.247.197, 202.78.247.198, 202.78.247.199]
+      when: region == "nz-por-1"
+
+    - name: Define Nameservers for Wellington region
+      set_fact:
+        nameservers: [202.78.240.213, 202.78.240.214, 202.78.240.215]
+      when: region == "nz_wlg_2"
+
+    - name: Create a network
+      os_network:
+        state: present
+        name: "{{ private_network_name }}"
+
+    - name: Create a subnet in {{ region }}
+      os_subnet:
+        state: present
+        name: "{{ private_subnet_name }}"
+        network_name: "{{ private_network_name }}"
+        cidr: "{{ subnet_first_octets }}.0/24"
+        dns_nameservers: "{{ nameservers }}"
+        allocation_pool_start: "{{ subnet_first_octets }}.98"
+        allocation_pool_end: "{{ subnet_first_octets }}.200"
+
+    - name: Create a router
+      os_router:
+        state: present
+        name: "{{ router_name }}"
+        network: public-net
+        interfaces:
+          - "{{ private_subnet_name }}"
+
+    - name: "Create the {{ security_group_name }} security group"
+      os_security_group:
+        state: present
+        name: "{{ security_group_name }}"
+        description: Network access for the example instance.
+
+    - name: Create a security group rule for SSH access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: "{{ keypair_name }}"
+        public_key_file: "{{ ssh_public_key }}"
+
+    - name: Create swarm node compute instances
+      os_server:
+        state: present
+        name: "{{ item.instance_name }}"
+        image: "{{ image }}"
+        key_name: "{{ keypair_name }}"
+        flavor: "{{ flavor }}"
+        nics:
+          - net-name: "{{ private_network_name }}"
+        security_groups: "default,{{ security_group_name }}"
+      with_items: "{{ instances }}"
+
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ item.instance_name }}"
+      register: floating_ip_info
+      with_items: "{{ instances }}"
+
+    - name: Wait for SSH to come up on instances
+      wait_for:
+        host: "{{ item.floating_ip.floating_ip_address }}"
+        port: 22
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Remove floating ip from known hosts
+      known_hosts:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        state: absent
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Install python2 on compute instances
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Add newly created hosts to groups
+      add_host:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        groups: "{{ item.item.instance_group }},swarm-nodes"
+        ansible_user: ubuntu
+        instance_name: "{{ item.item.instance_name }}"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Add newly created hosts to local ~/.ssh/config
+      blockinfile:
+        dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        insertbefore: BOF
+        block: |
+          Host {{ item.item.instance_name }}
+              Hostname {{ item.floating_ip.floating_ip_address }}
+              User ubuntu
+
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.instance_name }} docker swarm node"
+      with_items: "{{ floating_ip_info.results }}"
+
+- name: Setup docker engine on compute instances
+  hosts: swarm-nodes
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Apt dist upgrade
+      apt:
+        upgrade: dist
+        autoremove: yes
+
+    - name: Install packages required for docker
+      apt:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - "linux-image-extra-{{ ansible_kernel }}"
+        - linux-image-extra-virtual
+
+    - name: Add dockerproject apt key
+      apt_key:
+        keyserver: ha.pool.sks-keyservers.net
+        id: 58118E89F3A912897C070ADBF76221572C52609D
+
+    - name: Copy dockerproject apt source
+      copy:
+        src: xenial-docker.list
+        dest: /etc/apt/sources.list.d/docker.list
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install docker engine
+      apt:
+        name: docker-engine
+        state: latest
+      notify:
+        - Start docker
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        append: yes
+        groups: docker
+
+  handlers:
+    - name: Start docker
+      service:
+        name: docker
+        state: started
