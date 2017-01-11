@@ -1,0 +1,60 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an openstack rc file has been sourced
+
+- name: Remove k8s nodes and associated OpenStack resources
+  hosts: localhost
+  vars:
+    # change as required
+    keypair_name: k8s-key
+    router_name: k8s-router
+    private_network_name: k8s-net
+    security_group_name: k8s-sg
+    # instance configuration
+    instances:
+      - instance_name: master1
+      - instance_name: worker1
+      - instance_name: worker2
+      - instance_name: worker3
+      - instance_name: worker4
+    # no changes required after this
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Remove k8s node compute instances
+      os_server:
+        name: "{{ item.instance_name }}"
+        state: absent
+      with_items: "{{ instances }}"
+
+    - name: Remove k8s keypair
+      os_keypair:
+        state: absent
+        name: "{{ keypair_name }}"
+
+    - name: Remove k8s router
+      os_router:
+        state: absent
+        name: "{{ router_name }}"
+
+    - name: Remove k8s network
+      os_network:
+        state: absent
+        name: "{{ private_network_name }}"
+
+    - name: Remove k8s security_group
+      os_security_group:
+        state: absent
+        name: "{{ security_group_name }}"
+
+    - name: Remove hosts from local ~/.ssh/config
+      blockinfile:
+        dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        state: absent
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.instance_name }} docker k8s node"
+      with_items: "{{ instances }}"
+
