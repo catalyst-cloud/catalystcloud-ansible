@@ -1,0 +1,288 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an openstack rc file has been sourced
+
+- name: Deploy five networked host machines as k8s nodes
+  hosts: localhost
+  vars:
+    # change or override at runtime using --extra-vars
+    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change as required
+    # TODO get this working without requiring people to install a plugin
+    #ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') | default('0.0.0.0/0', true) }}"
+    ssh_remote_cidr: 0.0.0.0/0
+    image: ubuntu-16.04-x86_64
+    router_name: k8s-router
+    private_network_name: k8s-net
+    private_subnet_name: k8s-subnet
+    keypair_name: k8s-key
+    subnet_first_octets: 192.168.99
+    security_group_name: k8s-sg
+    # instance configuration
+    instances:
+      master1:
+        instance_name: master1
+        instance_group: master-nodes
+        flavor: c1.c4r4
+      worker1:
+        instance_name: worker1
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker2:
+        instance_name: worker2
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker3:
+        instance_name: worker3
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker4:
+        instance_name: worker4
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+    # no changes required after this
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+
+  tasks:
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Define Nameservers for Porirua region
+      set_fact:
+        nameservers: [202.78.247.197, 202.78.247.198, 202.78.247.199]
+      when: region == "nz-por-1"
+
+    - name: Define Nameservers for Wellington region
+      set_fact:
+        nameservers: [202.78.240.213, 202.78.240.214, 202.78.240.215]
+      when: region == "nz_wlg_2"
+
+    - name: Create a network
+      os_network:
+        state: present
+        name: "{{ private_network_name }}"
+
+    - name: Create a subnet in {{ region }}
+      os_subnet:
+        state: present
+        name: "{{ private_subnet_name }}"
+        network_name: "{{ private_network_name }}"
+        cidr: "{{ subnet_first_octets }}.0/24"
+        dns_nameservers: "{{ nameservers }}"
+        allocation_pool_start: "{{ subnet_first_octets }}.98"
+        allocation_pool_end: "{{ subnet_first_octets }}.200"
+
+    - name: Create a router
+      os_router:
+        state: present
+        name: "{{ router_name }}"
+        network: public-net
+        interfaces:
+          - "{{ private_subnet_name }}"
+
+    - name: "Create the {{ security_group_name }} security group"
+      os_security_group:
+        state: present
+        name: "{{ security_group_name }}"
+        description: Network access for the example instance.
+
+    - name: Create a security group rule for SSH access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: "{{ keypair_name }}"
+        public_key_file: "{{ ssh_public_key }}"
+
+    - name: Create k8s node compute instances
+      os_server:
+        state: present
+        name: "{{ item.value.instance_name }}"
+        image: "{{ image }}"
+        key_name: "{{ keypair_name }}"
+        flavor: "{{ item.value.flavor }}"
+        nics:
+          - net-name: "{{ private_network_name }}"
+        security_groups: "default,{{ security_group_name }}"
+      with_dict: "{{ instances }}"
+
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ item.value.instance_name }}"
+      register: floating_ip_info
+      with_dict: "{{ instances }}"
+
+    - name: DEBUG floating_ip_info
+      debug:
+        msg: "{{ floating_ip_info }}"
+
+    - name: Append fixed_ip_address to instances
+      set_fact:
+        instances: "{{instances|combine( { item.item.key: { 'instance_fixed_ip': item.floating_ip.fixed_ip_address } }, recursive=True )}}"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: DEBUG instances
+      debug:
+        msg: "{{ instances }}"
+
+    - name: Wait for SSH to come up on instances
+      wait_for:
+        host: "{{ item.floating_ip.floating_ip_address }}"
+        port: 22
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Remove floating ip from known hosts
+      known_hosts:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        state: absent
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Install python2 on compute instances
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Add newly created hosts to groups
+      add_host:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        groups: "{{ item.item.value.instance_group }},k8s-nodes"
+        ansible_user: ubuntu
+        instance_name: "{{ item.item.value.instance_name }}"
+        instance_data: "{{ instances[item.item.value.instance_name] }}"
+        instances: "{{ instances }}"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Add newly created hosts to local ~/.ssh/config
+      blockinfile:
+        dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        insertbefore: BOF
+        block: |
+          Host {{ item.item.value.instance_name }}
+              Hostname {{ item.floating_ip.floating_ip_address }}
+              User ubuntu
+
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.value.instance_name }} docker k8s node"
+      with_items: "{{ floating_ip_info.results }}"
+
+- name: Setup docker engine on compute instances
+  hosts: k8s-nodes
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Add all instances to /etc/hosts
+      lineinfile:
+        dest: /etc/hosts
+        line: "{{ item.value.instance_fixed_ip }} {{ item.value.instance_name }}"
+      with_dict: "{{ instances }}"
+
+    - name: Apt dist upgrade
+      apt:
+        upgrade: dist
+        autoremove: yes
+
+    - name: Install packages required for docker
+      apt:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - "linux-image-extra-{{ ansible_kernel }}"
+        - linux-image-extra-virtual
+
+    - name: Add dockerproject apt key
+      apt_key:
+        keyserver: ha.pool.sks-keyservers.net
+        id: 58118E89F3A912897C070ADBF76221572C52609D
+
+    - name: Create dockerproject apt source
+      lineinfile:
+        line: 'deb https://apt.dockerproject.org/repo ubuntu-xenial main'
+        dest: /etc/apt/sources.list.d/docker.list
+        create: yes
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Add kubernetes apt key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+    - name: Create kubernetes apt source
+      lineinfile:
+        line: 'deb http://apt.kubernetes.io/ kubernetes-xenial main'
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        create: yes
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install docker engine
+      apt:
+        name: docker-engine
+        state: latest
+      notify:
+        - Start docker
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        append: yes
+        groups: docker
+
+    - name: Install kubernetes packages
+      apt:
+        name: "{{ item }}"
+        state: latest
+      notify:
+        - Start kubelet
+      with_items:
+        - kubelet
+        - kubeadm
+        - kubectl
+        - kubernetes-cni
+
+# https://github.com/kubernetes/release/issues/171
+# There is a race condition in the kubeadm deb that means that sometimes
+# /var/lib/kubelet is not empty. This prevents kubeadm from running so we will
+# ensure the directory is not there.
+
+# Means that its not safe to run this playbook when hosts are aleady acting as nodes
+# TODO add a check to see if something is running before we try delete
+    - name: Remove /var/lib/kubelet if it exists so we can run kubeadm
+      file:
+        path: /var/lib/kubelet
+        state: absent
+
+  handlers:
+    - name: Start docker
+      service:
+        name: docker
+        state: started
+
+    - name: Start kubelet
+      service:
+        name: kubelet
+        state: started
+
+- name: Additional setup on master nodes
+  hosts: master-nodes
+  become: yes
+  become_method: sudo
+  tasks:
+    - name: Download flannel pod network add-on yaml file
+      get_url:
+        url: https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        dest: /root/kube-flannel.yml
+        mode: 0440
