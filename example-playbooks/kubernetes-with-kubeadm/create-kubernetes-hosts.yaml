@@ -6,12 +6,11 @@
 - name: Deploy five networked host machines as k8s nodes
   hosts: localhost
   vars:
-    # change or override at runtime using --extra-vars
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # if required change or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # change as required
-    # TODO get this working without requiring people to install a plugin
-    #ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') | default('0.0.0.0/0', true) }}"
-    ssh_remote_cidr: 0.0.0.0/0
+    # dig lookup requires dnspython
+    ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
     router_name: k8s-router
     private_network_name: k8s-net
@@ -120,18 +119,11 @@
       register: floating_ip_info
       with_dict: "{{ instances }}"
 
-    - name: DEBUG floating_ip_info
-      debug:
-        msg: "{{ floating_ip_info }}"
-
     - name: Append fixed_ip_address to instances
       set_fact:
         instances: "{{instances|combine( { item.item.key: { 'instance_fixed_ip': item.floating_ip.fixed_ip_address } }, recursive=True )}}"
+      changed_when: true
       with_items: "{{ floating_ip_info.results }}"
-
-    - name: DEBUG instances
-      debug:
-        msg: "{{ instances }}"
 
     - name: Wait for SSH to come up on instances
       wait_for:
@@ -145,9 +137,17 @@
         state: absent
       with_items: "{{ floating_ip_info.results }}"
 
-    - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+    - name: Check if python2 is installed on compute instances
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} [ -e /usr/bin/python2 ]"
+      register: python2_install_status
+      failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
+      changed_when: false
       with_items: "{{ floating_ip_info.results }}"
+
+    - name: Install python2 on compute instances
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+      when: item.rc != 0
+      with_items: "{{ python2_install_status.results }}"
 
     - name: Add newly created hosts to groups
       add_host:
@@ -171,7 +171,7 @@
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.value.instance_name }} docker k8s node"
       with_items: "{{ floating_ip_info.results }}"
 
-- name: Setup docker engine on compute instances
+- name: Setup docker engine and kubernetes packages on compute instances
   hosts: k8s-nodes
   become: yes
   become_method: sudo
@@ -202,7 +202,7 @@
         keyserver: ha.pool.sks-keyservers.net
         id: 58118E89F3A912897C070ADBF76221572C52609D
 
-    - name: Create dockerproject apt source
+    - name: Add dockerproject apt source
       lineinfile:
         line: 'deb https://apt.dockerproject.org/repo ubuntu-xenial main'
         dest: /etc/apt/sources.list.d/docker.list
@@ -215,7 +215,7 @@
       apt_key:
         url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
 
-    - name: Create kubernetes apt source
+    - name: Add kubernetes apt source
       lineinfile:
         line: 'deb http://apt.kubernetes.io/ kubernetes-xenial main'
         dest: /etc/apt/sources.list.d/kubernetes.list
@@ -241,14 +241,19 @@
         append: yes
         groups: docker
 
+    - name: Install kubelet
+      apt:
+        name: kubelet
+        state: latest
+      notify:
+        - Start kubelet
+      register: kubelet_install_status
+
     - name: Install kubernetes packages
       apt:
         name: "{{ item }}"
         state: latest
-      notify:
-        - Start kubelet
       with_items:
-        - kubelet
         - kubeadm
         - kubectl
         - kubernetes-cni
@@ -256,14 +261,13 @@
 # https://github.com/kubernetes/release/issues/171
 # There is a race condition in the kubeadm deb that means that sometimes
 # /var/lib/kubelet is not empty. This prevents kubeadm from running so we will
-# ensure the directory is not there.
+# ensure the directory is not there. Only do this if we just installed kubelet
 
-# Means that its not safe to run this playbook when hosts are aleady acting as nodes
-# TODO add a check to see if something is running before we try delete
-    - name: Remove /var/lib/kubelet if it exists so we can run kubeadm
+    - name: Remove /var/lib/kubelet if it exists and we have just installed kubeadm
       file:
         path: /var/lib/kubelet
         state: absent
+      when: kubelet_install_status | changed
 
   handlers:
     - name: Start docker
