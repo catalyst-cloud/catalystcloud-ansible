@@ -12,12 +12,12 @@
   hosts: localhost
   vars:
     # OpenStack authentication variables (not required if RC sourced)
-    os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
-    os_region: nz-por-1
-    os_az: nz-por-1a
-    os_project_name: projectname
-    os_username: username
-    os_password: password
+    #os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
+    #os_region: nz-por-1
+    #os_az: nz-por-1a
+    #os_project_name: projectname
+    #os_username: username
+    #os_password: password
     # Attributes used for launching the compute instance (required)
     image: ubuntu-14.04-x86_64
     private_network_name: private-net
