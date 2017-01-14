@@ -1,0 +1,82 @@
+#!/usr/bin/env ansible-playbook
+
+- name: Cookbook to demonstrate adding specific values from one dict into another
+  hosts: localhost
+  vars:
+    instances:
+      master1:
+        instance_name: master1
+        instance_group: master-nodes
+        flavor: c1.c4r4
+      worker1:
+        instance_name: worker1
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker2:
+        instance_name: worker2
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker3:
+        instance_name: worker3
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker4:
+        instance_name: worker4
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+
+    floating_ip_info:
+      changed: no
+      msg: All items completed
+      results:
+        -
+          floating_ip:
+            fixed_ip_address: 192.168.99.105
+            module_name: os_floating_ip
+          item:
+            flavor: c1.c4r4
+            instance_group: master-nodes
+            instance_name: master1
+        -
+          floating_ip:
+            fixed_ip_address: 192.168.99.101
+            module_name: os_floating_ip
+          item:
+            flavor: c1.c1r1
+            instance_group: worker-nodes
+            instance_name: worker1
+        -
+          floating_ip:
+            fixed_ip_address: 192.168.99.102
+            module_name: os_floating_ip
+          item:
+            flavor: c1.c1r1
+            instance_group: worker-nodes
+            instance_name: worker2
+        -
+          floating_ip:
+            fixed_ip_address: 192.168.99.103
+            module_name: os_floating_ip
+          item:
+            flavor: c1.c1r1
+            instance_group: worker-nodes
+            instance_name: worker3
+        -
+          floating_ip:
+            fixed_ip_address: 192.168.99.104
+            module_name: os_floating_ip
+          item:
+            flavor: c1.c1r1
+            instance_group: worker-nodes
+            instance_name: worker4
+
+  tasks:
+    - name: Append fixed_ip_address to instances
+      set_fact:
+        instances: "{{instances|combine( { item.item.instance_name: { 'instance_fixed_ip': item.floating_ip.fixed_ip_address } }, recursive=True )}}"
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Result
+      debug:
+       msg: "{{ instances }}"
+

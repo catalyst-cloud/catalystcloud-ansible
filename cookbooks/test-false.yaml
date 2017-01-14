@@ -1,0 +1,26 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Test false
+  hosts: localhost
+
+  tasks:
+    - name: Test false
+      command: /bin/false
+      register: false_result
+      changed_when: false_result.rc == 0
+      failed_when: false_result.rc != 0 and false_result.rc != 1
+
+    - name: Test true
+      command: /bin/true
+      register: true_result
+      changed_when: true_result.rc == 0
+      failed_when: true_result.rc != 0 and true_result.rc != 1
+
+    - name: Test other
+      command: /bin/other
+      register: other_result
+      failed_when: other_result.rc != 0 and other_result.rc != 1
+
