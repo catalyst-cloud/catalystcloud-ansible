@@ -1,0 +1,44 @@
+#!/usr/bin/env ansible-playbook
+
+- name: Cookbook to demonstrate looking up something in one dict using a key from a different dict
+  hosts: localhost
+  vars:
+    instances:
+      master1:
+        instance_name: master1
+        instance_group: master-nodes
+        flavor: c1.c4r4
+      worker1:
+        instance_name: worker1
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker2:
+        instance_name: worker2
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker3:
+        instance_name: worker3
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker4:
+        instance_name: worker4
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+
+    instance_ips:
+      master1:
+        private_ip: 10.20.30.40
+      worker1:
+        private_ip: 10.20.30.41
+      worker2:
+        private_ip: 10.20.30.42
+      worker3:
+        private_ip: 10.20.30.43
+      worker4:
+        private_ip: 10.20.30.44
+
+  tasks:
+    - name: DEBUG
+      debug:
+        msg: "Host {{ item.key }} private_ip = {{ instance_ips[item.key].private_ip }}"
+      with_dict: "{{ instances }}"
