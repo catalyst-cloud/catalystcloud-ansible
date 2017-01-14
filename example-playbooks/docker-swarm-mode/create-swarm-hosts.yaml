@@ -8,8 +8,8 @@
   vars:
     # change if required or override at runtime using --extra-vars
     ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
-    # change as required
-    ssh_remote_cidr: 0.0.0.0/0
+    # dig lookup requires dnspython
+    ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
     router_name: swarm-router
     private_network_name: swarm-net
