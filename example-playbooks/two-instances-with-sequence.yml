@@ -5,9 +5,11 @@
   hosts: localhost
   vars:
     # Required variables
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # Attributes used for launching the compute instance (required)
-    ssh_remote_cidr: 0.0.0.0/0
+    # dig lookup requires dnspython
+    ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     web_remote_cidr: 0.0.0.0/0
     image: ubuntu-14.04-x86_64
     private_net: example-net

@@ -11,14 +11,17 @@
   hosts: localhost
   vars:
     # OpenStack authentication variables (not required if RC sourced)
-    os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
-    os_region: nz-por-1
-    os_az: nz-por-1a
-    os_project_name: projectname
-    os_username: username
-    os_password: password
+    #os_auth_url: https://api.cloud.catalyst.net.nz:5000/v2.0
+    #os_region: nz-por-1
+    #os_az: nz-por-1a
+    #os_project_name: projectname
+    #os_username: username
+    #os_password: password
     # Required variables
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+    # dig lookup requires dnspython
+    restricted_cidr_range: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     private_network_name: private-net
     private_subnet_name: private-subnet
     subnet_cidr: 10.0.0.0/24
@@ -87,7 +90,7 @@
         protocol: tcp
         port_range_min: 22
         port_range_max: 22
-        remote_ip_prefix: 0.0.0.0/0
+        remote_ip_prefix: "{{ restricted_cidr_range }}"
 
     - name: Import an SSH keypair
       os_keypair:
