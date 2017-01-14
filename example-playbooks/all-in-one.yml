@@ -6,8 +6,8 @@
 - name: Deploy a cloud instance
   hosts: localhost
   vars:
-    # change or override at runtime using --extra-vars
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     ssh_remote_cidr: 0.0.0.0/0
     web_remote_cidr: 0.0.0.0/0
     # change as required

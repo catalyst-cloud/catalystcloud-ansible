@@ -6,8 +6,8 @@
 - name: Setup cloud instances then make DNS records for them in CloudFlare
   hosts: localhost
   vars:
-    # change or override at runtime using --extra-vars
-    ssh_public_key: /home/yourname/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # change this to your local external range
     restricted_cidr_range: 0.0.0.0/0
     # change as required

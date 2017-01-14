@@ -18,7 +18,8 @@
     os_username: username
     os_password: password
     # Required variables
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     private_network_name: private-net
     private_subnet_name: private-subnet
     subnet_cidr: 10.0.0.0/24

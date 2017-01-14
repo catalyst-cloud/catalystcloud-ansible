@@ -6,8 +6,8 @@
 - name: Deploy three networked host machines as swarm nodes
   hosts: localhost
   vars:
-    # change or override at runtime using --extra-vars
-    ssh_public_key: /home/youruser/.ssh/id_rsa.pub
+    # change if required or override at runtime using --extra-vars
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # change as required
     ssh_remote_cidr: 0.0.0.0/0
     image: ubuntu-16.04-x86_64
