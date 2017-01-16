@@ -6,7 +6,7 @@
 - name: Remove k8s nodes and associated OpenStack resources
   hosts: localhost
   vars:
-    # change as required
+    ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/id_k8s_tutorial"
     keypair_name: k8s-key
     router_name: k8s-router
     private_network_name: k8s-net
@@ -18,8 +18,6 @@
       - instance_name: worker2
       - instance_name: worker3
       - instance_name: worker4
-    # no changes required after this
-    region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
     - name: Connect to the Catalyst Cloud
@@ -50,6 +48,14 @@
       os_security_group:
         state: absent
         name: "{{ security_group_name }}"
+
+    - name: Remove local SSH keys
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ ssh_key }}"
+        - "{{ ssh_key }}.pub"
 
     - name: Remove hosts from local ~/.ssh/config
       blockinfile:
