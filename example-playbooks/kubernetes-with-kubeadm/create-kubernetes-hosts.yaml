@@ -6,9 +6,7 @@
 - name: Deploy five networked host machines as k8s nodes
   hosts: localhost
   vars:
-    # if required change or override at runtime using --extra-vars
-    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
-    # change as required
+    ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/id_k8s_tutorial"
     # dig lookup requires dnspython
     ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
@@ -59,12 +57,10 @@
 
     - name: Create a network
       os_network:
-        state: present
         name: "{{ private_network_name }}"
 
     - name: Create a subnet in {{ region }}
       os_subnet:
-        state: present
         name: "{{ private_subnet_name }}"
         network_name: "{{ private_network_name }}"
         cidr: "{{ subnet_first_octets }}.0/24"
@@ -74,7 +70,6 @@
 
     - name: Create a router
       os_router:
-        state: present
         name: "{{ router_name }}"
         network: public-net
         interfaces:
@@ -82,28 +77,29 @@
 
     - name: "Create the {{ security_group_name }} security group"
       os_security_group:
-        state: present
         name: "{{ security_group_name }}"
         description: Network access for the example instance.
 
     - name: Create a security group rule for SSH access
       os_security_group_rule:
-        state: present
         security_group: "{{ security_group_name }}"
         protocol: tcp
         port_range_min: 22
         port_range_max: 22
         remote_ip_prefix: "{{ ssh_remote_cidr }}"
 
-    - name: Import an SSH keypair
+    - name: Create a SSH keypair for use with this playbook
+      command: "ssh-keygen -b 4096 -t rsa -f {{ ssh_key }} -q -N ''"
+      args:
+        creates: "{{ ssh_key }}*"
+
+    - name: Upload SSH public key to OpenStack
       os_keypair:
-        state: present
         name: "{{ keypair_name }}"
-        public_key_file: "{{ ssh_public_key }}"
+        public_key_file: "{{ ssh_key }}.pub"
 
     - name: Create k8s node compute instances
       os_server:
-        state: present
         name: "{{ item.value.instance_name }}"
         image: "{{ image }}"
         key_name: "{{ keypair_name }}"
@@ -138,14 +134,14 @@
       with_items: "{{ floating_ip_info.results }}"
 
     - name: Check if python2 is installed on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} [ -e /usr/bin/python2 ]"
+      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.floating_ip.floating_ip_address }} [ -e /usr/bin/python2 ]"
       register: python2_install_status
       failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
       changed_when: false
       with_items: "{{ floating_ip_info.results }}"
 
     - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
       when: item.rc != 0
       with_items: "{{ python2_install_status.results }}"
 
@@ -154,6 +150,7 @@
         name: "{{ item.floating_ip.floating_ip_address }}"
         groups: "{{ item.item.value.instance_group }},k8s-nodes"
         ansible_user: ubuntu
+        ansible_ssh_private_key_file: "{{ ssh_key }}"
         instance_name: "{{ item.item.value.instance_name }}"
         instance_data: "{{ instances[item.item.value.instance_name] }}"
         instances: "{{ instances }}"
@@ -167,6 +164,7 @@
           Host {{ item.item.value.instance_name }}
               Hostname {{ item.floating_ip.floating_ip_address }}
               User ubuntu
+              IdentityFile {{ ssh_key }}
 
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.value.instance_name }} docker k8s node"
       with_items: "{{ floating_ip_info.results }}"
