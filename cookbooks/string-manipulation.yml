@@ -1,0 +1,19 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Cookbook to demonstrate string manipulation
+  hosts: localhost
+  vars:
+    ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+    ssh_private_key:
+      regex: "{{ ssh_public_key | regex_replace('.pub$', '') }}"
+      split: "{{ ssh_public_key.split('.')[0:-1] | join('.') }}"
+      jinja2: "{{ ssh_public_key | splitext | first }}"
+
+  tasks:
+    - name: Debug strings
+      debug:
+        msg: "{{ item }}"
+      with_dict: "{{ ssh_private_key }}"
