@@ -1,0 +1,32 @@
+#!/usr/bin/env ansible-playbook
+
+- name: Cookbook to demonstrate loopiing over dicts
+  hosts: localhost
+  vars:
+    instances:
+      master1:
+        instance_name: master1
+        instance_group: master-nodes
+        flavor: c1.c4r4
+      worker1:
+        instance_name: worker1
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker2:
+        instance_name: worker2
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker3:
+        instance_name: worker3
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+      worker4:
+        instance_name: worker4
+        instance_group: worker-nodes
+        flavor: c1.c1r1
+
+  tasks:
+    - name: DEBUG
+      debug:
+        msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
+      with_dict: "{{ instances }}"
