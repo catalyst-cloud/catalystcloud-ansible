@@ -17,3 +17,11 @@
       debug:
         msg: "{{ item }}"
       with_dict: "{{ ssh_private_key }}"
+
+    - name: Capture a string from a command
+      command: "pwgen -1 20"
+      register: pwgen_output
+
+    - name: Password
+      debug:
+        msg: "{{ pwgen_output.stdout }}"
