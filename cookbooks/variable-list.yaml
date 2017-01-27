@@ -1,0 +1,29 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Loop over list
+  hosts: localhost
+  vars:
+    remote_cidr:
+      - 0.0.0.0/32
+      - 1.1.1.1/32
+      - 2.2.2.2/32
+
+  tasks:
+    - name: with_items loop using a var
+      debug:
+        msg: "{{ item }}"
+      with_items: "{{ remote_cidr }}"
+
+    - name: with_items loop using an inline list
+      debug:
+        msg: "{{ item }}"
+      with_items:
+        - A
+        - B
+        - C
+        - D
+
+
