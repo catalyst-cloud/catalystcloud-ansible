@@ -121,53 +121,58 @@
       changed_when: true
       with_items: "{{ floating_ip_info.results }}"
 
+    - name: Append floating_ip_address to instances
+      set_fact:
+        instances: "{{instances|combine( { item.item.key: { 'instance_floating_ip': item.floating_ip.floating_ip_address } }, recursive=True )}}"
+      changed_when: true
+      with_items: "{{ floating_ip_info.results }}"
+
     - name: Wait for SSH to come up on instances
       wait_for:
-        host: "{{ item.floating_ip.floating_ip_address }}"
+        host: "{{ item.value.instance_floating_ip }}"
         port: 22
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
 
     - name: Remove floating ip from known hosts
       known_hosts:
-        name: "{{ item.floating_ip.floating_ip_address }}"
+        name: "{{ item.value.instance_floating_ip }}"
         state: absent
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
 
     - name: Check if python2 is installed on compute instances
-      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.floating_ip.floating_ip_address }} [ -e /usr/bin/python2 ]"
+      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.value.instance_floating_ip }} [ -e /usr/bin/python2 ]"
       register: python2_install_status
       failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
       changed_when: false
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
 
     - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
+      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.item.value.instance_floating_ip }} sudo apt-get -y install python-minimal"
       when: item.rc != 0
       with_items: "{{ python2_install_status.results }}"
 
     - name: Add newly created hosts to groups
       add_host:
-        name: "{{ item.floating_ip.floating_ip_address }}"
-        groups: "{{ item.item.value.instance_group }},k8s-nodes"
+        name: "{{ item.value.instance_floating_ip }}"
+        groups: "{{ item.value.instance_group }},k8s-nodes"
         ansible_user: ubuntu
         ansible_ssh_private_key_file: "{{ ssh_key }}"
-        instance_name: "{{ item.item.value.instance_name }}"
-        instance_data: "{{ instances[item.item.value.instance_name] }}"
+        instance_name: "{{ item.value.instance_name }}"
         instances: "{{ instances }}"
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
 
     - name: Add newly created hosts to local ~/.ssh/config
       blockinfile:
         dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
         insertbefore: BOF
         block: |
-          Host {{ item.item.value.instance_name }}
-              Hostname {{ item.floating_ip.floating_ip_address }}
+          Host {{ item.value.instance_name }}
+              Hostname {{ item.value.instance_floating_ip }}
               User ubuntu
               IdentityFile {{ ssh_key }}
 
-        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.value.instance_name }} docker k8s node"
-      with_items: "{{ floating_ip_info.results }}"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.value.instance_name }} docker k8s node"
+      with_dict: "{{ instances }}"
 
 - name: Setup docker engine and kubernetes packages on compute instances
   hosts: k8s-nodes
