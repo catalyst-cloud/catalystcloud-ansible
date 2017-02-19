@@ -1,0 +1,42 @@
+#!/usr/bin/env ansible-playbook
+
+# https://docs.ansible.com/ansible/playbooks_loops.html#looping-over-subelements
+
+- name: Cookbook to demonstrate the with_subelements loop construct
+  hosts: localhost
+  vars:
+    instances:
+      master1:
+        instance_name: master1
+        security_groups:
+            - common_sg
+            - master_sg
+      worker1:
+        instance_name: worker1
+        security_groups:
+            - common_sg
+            - worker_sg
+      worker2:
+        instance_name: worker2
+        security_groups:
+            - common_sg
+            - worker_sg
+            - worker2_sg
+      worker3:
+        instance_name: worker3
+        security_groups:
+            - common_sg
+            - worker_sg
+      worker4:
+        instance_name: worker4
+        security_groups:
+            - common_sg
+            - worker_sg
+
+  tasks:
+    - name: DEBUG
+      debug:
+        msg: "Instance {{ item.0.instance_name }} security_group = {{ item.1 }}"
+      with_subelements:
+        - "{{ instances }}"
+        - security_groups
