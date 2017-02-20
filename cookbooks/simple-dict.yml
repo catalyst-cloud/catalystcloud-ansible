@@ -31,7 +31,6 @@
         msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
       with_dict: "{{ instances }}"
 
-  tasks:
     - name: Loop over dict with conditional
       debug:
         msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
