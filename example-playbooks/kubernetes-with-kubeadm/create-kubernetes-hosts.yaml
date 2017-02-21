@@ -8,36 +8,67 @@
   vars:
     ssh_key: "{{ lookup('env', 'HOME') }}/.ssh/id_k8s_tutorial"
     # dig lookup requires dnspython
-    ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
+    remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
     router_name: k8s-router
     private_network_name: k8s-net
     private_subnet_name: k8s-subnet
     keypair_name: k8s-key
     subnet_first_octets: 192.168.99
-    security_group_name: k8s-sg
+    security_groups:
+      - sg_name: "ssh-sg"
+        sg_description: "SSH access for Kubernetes nodes"
+        rules:
+          - protocol: tcp
+            port_range_max: 22
+            port_range_min: 22
+            remote_ip_prefix: "{{ remote_cidr }}"
+      - sg_name: "demo-site-sg"
+        sg_description: "Network access for Kubernetes demo microservice"
+        rules:
+          - protocol: tcp
+            port_range_max: 30001
+            port_range_min: 30001
+            remote_ip_prefix: "{{ remote_cidr }}"
     # instance configuration
     instances:
       master1:
         instance_name: master1
         instance_group: master-nodes
         flavor: c1.c4r4
+        security_groups:
+          - "ssh-sg"
+          - "demo-site-sg"
+          - "default"
       worker1:
         instance_name: worker1
         instance_group: worker-nodes
         flavor: c1.c1r1
+        security_groups:
+          - "ssh-sg"
+          - "default"
       worker2:
         instance_name: worker2
         instance_group: worker-nodes
         flavor: c1.c1r1
+        security_groups:
+          - "ssh-sg"
+          - "default"
       worker3:
         instance_name: worker3
         instance_group: worker-nodes
         flavor: c1.c1r1
+        security_groups:
+          - "ssh-sg"
+          - "default"
       worker4:
         instance_name: worker4
         instance_group: worker-nodes
         flavor: c1.c1r1
+        security_groups:
+          - "ssh-sg"
+          - "default"
+
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
@@ -75,18 +106,23 @@
         interfaces:
           - "{{ private_subnet_name }}"
 
-    - name: "Create the {{ security_group_name }} security group"
+    - name: "Create the security groups"
       os_security_group:
-        name: "{{ security_group_name }}"
-        description: Network access for the example instance.
+        name: "{{ item.sg_name }}"
+        description:  access for the kubernetes node.
+      with_items:
+        "{{ security_groups}}"
 
-    - name: Create a security group rule for SSH access
+    - name: Create a security group rules
       os_security_group_rule:
-        security_group: "{{ security_group_name }}"
-        protocol: tcp
-        port_range_min: 22
-        port_range_max: 22
-        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+        security_group: "{{ item.0.sg_name }}"
+        protocol: "{{ item.1.protocol }}"
+        port_range_min: "{{ item.1.port_range_min }}"
+        port_range_max: "{{ item.1.port_range_max }}"
+        remote_ip_prefix: "{{ item.1.remote_ip_prefix }}"
+      with_subelements:
+        - "{{ security_groups }}"
+        - rules
 
     - name: Create a SSH keypair for use with this playbook
       command: "ssh-keygen -b 4096 -t rsa -f {{ ssh_key }} -q -N ''"
@@ -106,7 +142,7 @@
         flavor: "{{ item.value.flavor }}"
         nics:
           - net-name: "{{ private_network_name }}"
-        security_groups: "default,{{ security_group_name }}"
+        security_groups: "{{ item.value.security_groups }}"
       with_dict: "{{ instances }}"
 
     - name: Assign a floating IP
