@@ -1,6 +1,6 @@
 #!/usr/bin/env ansible-playbook
 
-- name: Cookbook to demonstrate loopiing over dicts
+- name: Cookbook to demonstrate looping over dicts
   hosts: localhost
   vars:
     instances:
@@ -26,7 +26,13 @@
         flavor: c1.c1r1
 
   tasks:
-    - name: DEBUG
+    - name: Loop over dict
       debug:
         msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
+      with_dict: "{{ instances }}"
+
+    - name: Loop over dict with conditional
+      debug:
+        msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
+      when: item.value.flavor == 'c1.c4r4'
       with_dict: "{{ instances }}"
