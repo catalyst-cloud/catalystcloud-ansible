@@ -11,28 +11,30 @@
     # dig lookup requires dnspython
     ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
-    router_name: swarm-router
-    private_network_name: swarm-net
-    private_subnet_name: swarm-subnet
-    keypair_name: swarm-key
+    private_subnet_name: "swarm-subnet-{{ training_machine.stdout }}"
+    keypair_name: "swarm-key-{{ training_machine.stdout }}"
+    router_name: "swarm-router-{{ training_machine.stdout }}"
+    private_network_name: "swarm-net-{{ training_machine.stdout }}"
+    security_group_name: "swarm-sg-{{ training_machine.stdout }}"
     flavor: c1.c1r1
     subnet_first_octets: 192.168.99
     security_group_name: swarm-sg
     # instance configuration
     instances:
-      manager1:
-        instance_group: swarm-managers
-        instance_name: manager1
-      worker1:
-        instance_group: swarm-workers
-        instance_name: worker1
-      worker2:
-        instance_group: swarm-workers
-        instance_name: worker2
+      - instance_name: "manager1-{{ training_machine.stdout }}"
+        instance_group: "swarm-managers-{{ training_machine.stdout }}"
+      - instance_name: "worker1-{{ training_machine.stdout }}"
+        instance_group: "swarm-workers-{{ training_machine.stdout }}"
+      - instance_name: "worker2-{{ training_machine.stdout }}"
+        instance_group: "swarm-workers-{{ training_machine.stdout }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
+    - name: Register training machine hostname as variable
+      local_action: command hostname
+      register: training_machine
+
     - name: Connect to the Catalyst Cloud
       os_auth:
 
@@ -82,6 +84,33 @@
         protocol: tcp
         port_range_min: 22
         port_range_max: 22
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Create a security group rule for vote app access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 5000
+        port_range_max: 5000
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Create a security group rule for vote result app access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 5001
+        port_range_max: 5001
+        remote_ip_prefix: "{{ ssh_remote_cidr }}"
+
+    - name: Create a security group rule for visualiser
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 8080
+        port_range_max: 8080
         remote_ip_prefix: "{{ ssh_remote_cidr }}"
 
     - name: Import an SSH keypair
@@ -164,6 +193,15 @@
 
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.value.instance_name }} docker swarm node"
       with_dict: "{{ instances }}"
+
+    - name: Add newly created hosts to /etc/hosts
+      become: yes
+      blockinfile:
+        dest: /etc/hosts
+        insertafter: EOF
+        block: |
+          {{ floating_ip_info.results[0].floating_ip.floating_ip_address }} voting.app
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ floating_ip_info.results[0].item.instance_name }} docker swarm node"
 
 - name: Setup docker engine on compute instances
   hosts: swarm-nodes
