@@ -1,0 +1,28 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Test false
+  hosts: localhost
+  vars:
+    env_type: 'prod'
+
+  tasks:
+
+    - name: Task 1
+      debug:
+        msg: task1
+
+    - name: Task 2
+      debug:
+        msg: task2
+
+    - include: include-tasks.yaml
+      when: "env_type == 'dev'"
+
+    - include: include-tasks.yaml
+      static: no
+      when: "env_type == 'dev'"
+
+- include: include-play.yaml

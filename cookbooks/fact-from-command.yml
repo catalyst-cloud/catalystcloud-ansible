@@ -1,0 +1,18 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Populate a variable by calling a shell command
+  hosts: localhost
+
+  tasks:
+    - name: Get kernel version
+      command: uname -r
+      register: uname_output
+
+    - name: Set kernel_version fact
+      set_fact:
+        kernel_version: "{{ uname_output.stdout }}"
+
+    - name: Output the kernel version
+      debug:
+        msg: "Kernel version = {{ kernel_version }}"
