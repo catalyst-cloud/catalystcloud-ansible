@@ -1,0 +1,17 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Included play
+  hosts: localhost
+
+  tasks:
+
+    - name: Included Play Task 1
+      debug:
+        msg: task-p1
+
+    - name: Included Play Task 2
+      debug:
+        msg: task-p2

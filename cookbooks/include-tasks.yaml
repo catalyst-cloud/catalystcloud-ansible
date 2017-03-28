@@ -1,0 +1,12 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# See also https://docs.ansible.com/ansible/playbooks_error_handling.html
+
+- name: Included Task 1
+  debug:
+    msg: task-i1
+
+- name: Included Task 2
+  debug:
+    msg: task-i2

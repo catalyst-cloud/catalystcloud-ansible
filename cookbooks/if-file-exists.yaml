@@ -1,0 +1,21 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Execute task only if a file exists
+  hosts: localhost
+  vars:
+    check_file: "/etc/hosts"
+
+  tasks:
+    - stat:
+        path: "{{ check_file }}"
+      register: stat_result
+
+    - name: "Do somehting when {{ check_file }} exists"
+      debug:
+        msg: "{{ check_file }} exists"
+      when: stat_result.stat.exists == True
+
+    - name: "Dump result"
+      debug:
+        msg: "{{ stat_result }}"
