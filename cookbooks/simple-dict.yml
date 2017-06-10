@@ -3,6 +3,7 @@
 - name: Cookbook to demonstrate looping over dicts
   hosts: localhost
   vars:
+    key_host: master1
     instances:
       master1:
         instance_name: master1
@@ -36,3 +37,7 @@
         msg: "Host {{ item.key }} flavor = {{ item.value.flavor }}"
       when: item.value.flavor == 'c1.c4r4'
       with_dict: "{{ instances }}"
+
+    - name: Reference a specific value using a key from a variable
+      debug:
+        msg: "Host {{ key_host }} flavor = {{ instances[key_host]['flavor'] }}"
