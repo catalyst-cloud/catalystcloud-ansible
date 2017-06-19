@@ -1,0 +1,35 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# Work around registered variables being populated with:
+# "skipped": true, "skip_reason": "Conditional result was False"
+
+- name: Test false
+  hosts: localhost
+  vars:
+    letter: "A"
+
+  tasks:
+    - name: Register when A
+      command: "echo A"
+      register: command_result
+      when: letter == "A"
+
+    - name: Set fact when A
+      set_fact:
+        real_result: "{{ command_result }}"
+      when: letter == "A"
+
+    - name: Register when not A
+      command: "echo not A"
+      register: command_result
+      when: letter != "A"
+
+    - name: Set fact when not A
+      set_fact:
+        real_result: "{{ command_result }}"
+      when: letter != "A"
+
+    - name: Debug real_result
+      debug:
+        msg: "{{ real_result.stdout }}"
