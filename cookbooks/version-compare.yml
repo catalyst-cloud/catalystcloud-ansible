@@ -1,0 +1,27 @@
+#!/usr/bin/env ansible-playbook
+# vim:ff=unix ts=2 sw=2 ai expandtab
+---
+
+# ansible-playbook --extra-vars="version_number=1.2" version-compare.yml
+
+- name: Check a version number
+  hosts: localhost
+  vars:
+    version_number: 2.0
+    version_wanted: 1.1
+
+  tasks:
+    - name: "Version {{ version_number }} is greater than {{ version_wanted }}"
+      debug:
+        msg: "version number {{ version_number }} is greater than {{ version_wanted }}"
+      when: version_number | version_compare(version_wanted, 'gt')
+
+    - name: "Version {{ version_number }} is less than {{ version_wanted }}"
+      debug:
+        msg: "version number {{ version_number }} is less than {{ version_wanted }}"
+      when: version_number | version_compare(version_wanted, 'lt')
+
+    - name: "Version {{ version_number }} is equal to {{ version_wanted }}"
+      debug:
+        msg: "version number {{ version_number }} is equal to {{ version_wanted }}"
+      when: version_number | version_compare(version_wanted, 'eq')
