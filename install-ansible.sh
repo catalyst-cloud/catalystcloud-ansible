@@ -177,7 +177,7 @@ else
 fi
 
 # Install the shade library and the OpenStack client libraries.
-if ! pip install shade==1.20.0; then
+if ! pip install shade; then
   echo "Could not install the OpenStack client tools and shade"
   exit 1
 fi
