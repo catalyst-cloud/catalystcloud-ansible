@@ -20,12 +20,15 @@
     security_group_name: swarm-sg
     # instance configuration
     instances:
-      - instance_name: manager1
+      manager1:
         instance_group: swarm-managers
-      - instance_name: worker1
+        instance_name: manager1
+      worker1:
         instance_group: swarm-workers
-      - instance_name: worker2
+        instance_name: worker1
+      worker2:
         instance_group: swarm-workers
+        instance_name: worker2
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
@@ -90,62 +93,89 @@
     - name: Create swarm node compute instances
       os_server:
         state: present
-        name: "{{ item.instance_name }}"
+        name: "{{ item.value.instance_name }}"
         image: "{{ image }}"
         key_name: "{{ keypair_name }}"
         flavor: "{{ flavor }}"
         nics:
           - net-name: "{{ private_network_name }}"
         security_groups: "default,{{ security_group_name }}"
-      with_items: "{{ instances }}"
+      with_dict: "{{ instances }}"
 
     - name: Assign a floating IP
       os_floating_ip:
-        server: "{{ item.instance_name }}"
+        server: "{{ item.value.instance_name }}"
       register: floating_ip_info
-      with_items: "{{ instances }}"
+      with_dict: "{{ instances }}"
+
+    - name: Append fixed_ip_address to instances
+      set_fact:
+        instances: "{{instances|combine( { item.item.key: { 'instance_fixed_ip': item.floating_ip.fixed_ip_address } }, recursive=True )}}"
+      changed_when: true
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Append floating_ip_address to instances
+      set_fact:
+        instances: "{{instances|combine( { item.item.key: { 'instance_floating_ip': item.floating_ip.floating_ip_address } }, recursive=True )}}"
+      changed_when: true
+      with_items: "{{ floating_ip_info.results }}"
 
     - name: Wait for SSH to come up on instances
       wait_for:
-        host: "{{ item.floating_ip.floating_ip_address }}"
+        host: "{{ item.value.instance_floating_ip }}"
         port: 22
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
 
     - name: Remove floating ip from known hosts
       known_hosts:
-        name: "{{ item.floating_ip.floating_ip_address }}"
+        name: "{{ item.value.instance_floating_ip }}"
         state: absent
-      with_items: "{{ floating_ip_info.results }}"
+      with_dict: "{{ instances }}"
+
+    - name: Check if python2 is installed on compute instances
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.value.instance_floating_ip }} [ -e /usr/bin/python2 ]"
+      register: python2_install_status
+      failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
+      changed_when: false
+      with_dict: "{{ instances }}"
 
     - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} sudo apt-get -y install python-minimal"
-      with_items: "{{ floating_ip_info.results }}"
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.item.value.instance_floating_ip }} sudo apt-get -y install python-minimal"
+      when: item.rc != 0
+      with_items: "{{ python2_install_status.results }}"
 
     - name: Add newly created hosts to groups
       add_host:
-        name: "{{ item.floating_ip.floating_ip_address }}"
-        groups: "{{ item.item.instance_group }},swarm-nodes"
+        name: "{{ item.value.instance_floating_ip }}"
+        groups: "{{ item.value.instance_group }},swarm-nodes"
         ansible_user: ubuntu
-        instance_name: "{{ item.item.instance_name }}"
-      with_items: "{{ floating_ip_info.results }}"
+        instance_name: "{{ item.value.instance_name }}"
+        instances: "{{ instances }}"
+      with_dict: "{{ instances }}"
 
     - name: Add newly created hosts to local ~/.ssh/config
       blockinfile:
         dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
         insertbefore: BOF
         block: |
-          Host {{ item.item.instance_name }}
-              Hostname {{ item.floating_ip.floating_ip_address }}
+          Host {{ item.value.instance_name }}
+              Hostname {{ item.value.instance_floating_ip }}
               User ubuntu
 
-        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.item.instance_name }} docker swarm node"
-      with_items: "{{ floating_ip_info.results }}"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.value.instance_name }} docker swarm node"
+      with_dict: "{{ instances }}"
 
 - name: Setup docker engine on compute instances
   hosts: swarm-nodes
   become: yes
   become_method: sudo
   tasks:
+    - name: Add all instances to /etc/hosts
+      lineinfile:
+        dest: /etc/hosts
+        line: "{{ item.value.instance_fixed_ip }} {{ item.value.instance_name }}"
+      with_dict: "{{ instances }}"
+
     - name: Apt dist upgrade
       apt:
         upgrade: dist
