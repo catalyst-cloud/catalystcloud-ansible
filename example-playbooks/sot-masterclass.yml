@@ -8,7 +8,7 @@
     key_name: yourname-first-instance-key
     instance_name: yourname-first-instance
     security_group_name: yourname-first-instance-sg
-    local_public_html_dir: /home/don/workdir/hugo/foobar/public/ # Note training slash is important
+    local_public_html_dir: /home/train/foobar/public/ # Note training slash is important
     # NO CHANGES REGIRED AFTER THIS
 
     # Required variables
