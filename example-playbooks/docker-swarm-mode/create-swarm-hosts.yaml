@@ -11,29 +11,29 @@
     # dig lookup requires dnspython
     ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
-    private_subnet_name: "swarm-subnet-{{ training_machine.stdout }}"
-    keypair_name: "swarm-key-{{ training_machine.stdout }}"
-    router_name: "swarm-router-{{ training_machine.stdout }}"
-    private_network_name: "swarm-net-{{ training_machine.stdout }}"
-    security_group_name: "swarm-sg-{{ training_machine.stdout }}"
+    private_subnet_name: "swarm-subnet-{{ localhost_name.stdout }}"
+    keypair_name: "swarm-key-{{ localhost_name.stdout }}"
+    router_name: "swarm-router-{{ localhost_name.stdout }}"
+    private_network_name: "swarm-net-{{ localhost_name.stdout }}"
+    security_group_name: "swarm-sg-{{ localhost_name.stdout }}"
     flavor: c1.c1r1
     subnet_first_octets: 192.168.99
     security_group_name: swarm-sg
     # instance configuration
     instances:
-      - instance_name: "manager1-{{ training_machine.stdout }}"
-        instance_group: "swarm-managers-{{ training_machine.stdout }}"
-      - instance_name: "worker1-{{ training_machine.stdout }}"
-        instance_group: "swarm-workers-{{ training_machine.stdout }}"
-      - instance_name: "worker2-{{ training_machine.stdout }}"
-        instance_group: "swarm-workers-{{ training_machine.stdout }}"
+      - instance_name: "manager1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-managers-{{ localhost_name.stdout }}"
+      - instance_name: "worker1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+      - instance_name: "worker2-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
     - name: Register training machine hostname as variable
       local_action: command hostname
-      register: training_machine
+      register: localhost_name
 
     - name: Connect to the Catalyst Cloud
       os_auth:
@@ -203,7 +203,7 @@
           {{ floating_ip_info.results[0].floating_ip.floating_ip_address }} voting.app
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ floating_ip_info.results[0].item.instance_name }} docker swarm node"
 
-- name: Setup docker engine on compute instances
+- name: Setup docker community edition on compute instances
   hosts: swarm-nodes
   become: yes
   become_method: sudo
@@ -249,7 +249,7 @@
 
     - name: Install docker engine
       apt:
-        name: docker-engine
+        name: docker-ce
         state: latest
       notify:
         - Start docker
