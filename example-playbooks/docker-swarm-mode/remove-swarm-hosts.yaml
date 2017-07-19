@@ -7,18 +7,18 @@
   hosts: localhost
   vars:
     # change as required
-    keypair_name: "swarm-key-{{ training_machine.stdout }}"
-    router_name: "swarm-router-{{ training_machine.stdout }}"
-    private_network_name: "swarm-net-{{ training_machine.stdout }}"
-    security_group_name: "swarm-sg-{{ training_machine.stdout }}"
+    keypair_name: "swarm-key-{{ localhost_name.stdout }}"
+    router_name: "swarm-router-{{ localhost_name.stdout }}"
+    private_network_name: "swarm-net-{{ localhost_name.stdout }}"
+    security_group_name: "swarm-sg-{{ localhost_name.stdout }}"
     # instance configuration
     instances:
-      - instance_name: "manager1-{{ training_machine.stdout }}"
-        instance_group: "swarm-managers-{{ training_machine.stdout }}"
-      - instance_name: "worker1-{{ training_machine.stdout }}"
-        instance_group: "swarm-workers-{{ training_machine.stdout }}"
-      - instance_name: "worker2-{{ training_machine.stdout }}"
-        instance_group: "swarm-workers-{{ training_machine.stdout }}"
+      - instance_name: "manager1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-managers-{{ localhost_name.stdout }}"
+      - instance_name: "worker1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+      - instance_name: "worker2-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
@@ -26,7 +26,7 @@
 
     - name: Register training machine hostname as variable
       local_action: command hostname
-      register: training_machine
+      register: localhost_name
 
     - name: Connect to the Catalyst Cloud
       os_auth:

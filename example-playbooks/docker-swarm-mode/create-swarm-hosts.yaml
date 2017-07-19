@@ -21,11 +21,14 @@
     security_group_name: swarm-sg
     # instance configuration
     instances:
-      - instance_name: "manager1-{{ localhost_name.stdout }}"
+      manager1:
+        instance_name: "manager1-{{ localhost_name.stdout }}"
         instance_group: "swarm-managers-{{ localhost_name.stdout }}"
-      - instance_name: "worker1-{{ localhost_name.stdout }}"
+      worker1:
+        instance_name: "worker1-{{ localhost_name.stdout }}"
         instance_group: "swarm-workers-{{ localhost_name.stdout }}"
-      - instance_name: "worker2-{{ localhost_name.stdout }}"
+      worker2:
+        instance_name: "worker2-{{ localhost_name.stdout }}"
         instance_group: "swarm-workers-{{ localhost_name.stdout }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
@@ -137,6 +140,10 @@
       register: floating_ip_info
       with_dict: "{{ instances }}"
 
+    - name: Debugging statement
+      debug:
+        msg: "floating_ip_info {{ floating_ip_info.results[0].item.value.instance_name }}"
+
     - name: Append fixed_ip_address to instances
       set_fact:
         instances: "{{instances|combine( { item.item.key: { 'instance_fixed_ip': item.floating_ip.fixed_ip_address } }, recursive=True )}}"
@@ -201,7 +208,7 @@
         insertafter: EOF
         block: |
           {{ floating_ip_info.results[0].floating_ip.floating_ip_address }} voting.app
-        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ floating_ip_info.results[0].item.instance_name }} docker swarm node"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ floating_ip_info.results[0].item.value.instance_name }} docker swarm node"
 
 - name: Setup docker community edition on compute instances
   hosts: swarm-nodes
@@ -229,25 +236,23 @@
         - "linux-image-extra-{{ ansible_kernel }}"
         - linux-image-extra-virtual
 
-    - name: Add dockerproject apt key
+    - name: Add Dockers official GPG key
       apt_key:
-        keyserver: ha.pool.sks-keyservers.net
-        id: 58118E89F3A912897C070ADBF76221572C52609D
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        state: present
 
-    - name: Add dockerproject apt source
-      lineinfile:
-        line: 'deb https://apt.dockerproject.org/repo ubuntu-xenial main'
-        dest: /etc/apt/sources.list.d/docker.list
-        create: yes
-        owner: root
-        group: root
-        mode: 0644
 
     - name: Update apt cache
       apt:
         update_cache: yes
 
-    - name: Install docker engine
+
+    - name: Add repo for Docker CE
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
+        state: present
+
+    - name: Install docker community edition
       apt:
         name: docker-ce
         state: latest
