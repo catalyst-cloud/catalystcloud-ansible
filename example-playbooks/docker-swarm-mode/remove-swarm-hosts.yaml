@@ -7,22 +7,27 @@
   hosts: localhost
   vars:
     # change as required
-    keypair_name: swarm-key
-    router_name: swarm-router
-    private_network_name: swarm-net
-    security_group_name: swarm-sg
+    keypair_name: "swarm-key-{{ localhost_name.stdout }}"
+    router_name: "swarm-router-{{ localhost_name.stdout }}"
+    private_network_name: "swarm-net-{{ localhost_name.stdout }}"
+    security_group_name: "swarm-sg-{{ localhost_name.stdout }}"
     # instance configuration
     instances:
-      - instance_name: manager1
-        instance_group: swarm-managers
-      - instance_name: worker1
-        instance_group: swarm-workers
-      - instance_name: worker2
-        instance_group: swarm-workers
+      - instance_name: "manager1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-managers-{{ localhost_name.stdout }}"
+      - instance_name: "worker1-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+      - instance_name: "worker2-{{ localhost_name.stdout }}"
+        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
+
+    - name: Register training machine hostname as variable
+      local_action: command hostname
+      register: localhost_name
+
     - name: Connect to the Catalyst Cloud
       os_auth:
 
@@ -57,5 +62,14 @@
         dest: "{{ lookup('env', 'HOME') }}/.ssh/config"
         state: absent
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.instance_name }} docker swarm node"
+      with_items: "{{ instances }}"
+
+    - name: Remove host from /etc/hosts
+      become: yes
+      blockinfile:
+        dest: /etc/hosts
+        state: absent
+        insertafter: EOF
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{  item.instance_name  }} docker swarm node"
       with_items: "{{ instances }}"
 
