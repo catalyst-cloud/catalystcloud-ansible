@@ -1,0 +1,15 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Loop over list
+  hosts: localhost
+
+  tasks:
+    - name: dump hostvars
+      debug:
+        var: hostvars
+
+  tasks:
+    - name: dump vars
+      debug:
+        var: vars
