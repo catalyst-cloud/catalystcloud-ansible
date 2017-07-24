@@ -6,27 +6,25 @@
 - name: Deploy three networked host machines as swarm nodes
   hosts: localhost
   vars:
+    # optional suffix to namespace resources
+    suffix: ""
     # change as required
-    keypair_name: "swarm-key-{{ localhost_name.stdout }}"
-    router_name: "swarm-router-{{ localhost_name.stdout }}"
-    private_network_name: "swarm-net-{{ localhost_name.stdout }}"
-    security_group_name: "swarm-sg-{{ localhost_name.stdout }}"
+    keypair_name: "swarm-key{{ suffix }}"
+    router_name: "swarm-router{{ suffix }}"
+    private_network_name: "swarm-net{{ suffix }}"
+    security_group_name: "swarm-sg{{ suffix }}"
     # instance configuration
     instances:
-      - instance_name: "manager1-{{ localhost_name.stdout }}"
-        instance_group: "swarm-managers-{{ localhost_name.stdout }}"
-      - instance_name: "worker1-{{ localhost_name.stdout }}"
-        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
-      - instance_name: "worker2-{{ localhost_name.stdout }}"
-        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+      - instance_name: "manager1{{ suffix }}"
+        instance_group: "swarm-managers{{ suffix }}"
+      - instance_name: "worker1{{ suffix }}"
+        instance_group: "swarm-workers{{ suffix }}"
+      - instance_name: "worker2{{ suffix }}"
+        instance_group: "swarm-workers{{ suffix }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
-
-    - name: Register training machine hostname as variable
-      local_action: command hostname
-      register: localhost_name
 
     - name: Connect to the Catalyst Cloud
       os_auth:
@@ -70,6 +68,4 @@
         dest: /etc/hosts
         state: absent
         insertafter: EOF
-        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{  item.instance_name  }} docker swarm node"
-      with_items: "{{ instances }}"
-
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for docker voting.app"

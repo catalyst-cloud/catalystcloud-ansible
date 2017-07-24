@@ -6,38 +6,35 @@
 - name: Deploy three networked host machines as swarm nodes
   hosts: localhost
   vars:
+    # optional suffix to namespace resources
+    suffix: ""
     # change if required or override at runtime using --extra-vars
     ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # dig lookup requires dnspython
     ssh_remote_cidr: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
     image: ubuntu-16.04-x86_64
-    private_subnet_name: "swarm-subnet-{{ localhost_name.stdout }}"
-    keypair_name: "swarm-key-{{ localhost_name.stdout }}"
-    router_name: "swarm-router-{{ localhost_name.stdout }}"
-    private_network_name: "swarm-net-{{ localhost_name.stdout }}"
-    security_group_name: "swarm-sg-{{ localhost_name.stdout }}"
+    private_subnet_name: "swarm-subnet{{ suffix }}"
+    keypair_name: "swarm-key{{ suffix }}"
+    router_name: "swarm-router{{ suffix }}"
+    private_network_name: "swarm-net{{ suffix }}"
+    security_group_name: "swarm-sg{{ suffix }}"
     flavor: c1.c1r1
     subnet_first_octets: 192.168.99
-    security_group_name: swarm-sg
     # instance configuration
     instances:
       manager1:
-        instance_name: "manager1-{{ localhost_name.stdout }}"
-        instance_group: "swarm-managers-{{ localhost_name.stdout }}"
+        instance_name: "manager1{{ suffix }}"
+        instance_group: "swarm-managers{{ suffix }}"
       worker1:
-        instance_name: "worker1-{{ localhost_name.stdout }}"
-        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+        instance_name: "worker1{{ suffix }}"
+        instance_group: "swarm-workers{{ suffix }}"
       worker2:
-        instance_name: "worker2-{{ localhost_name.stdout }}"
-        instance_group: "swarm-workers-{{ localhost_name.stdout }}"
+        instance_name: "worker2{{ suffix }}"
+        instance_group: "swarm-workers{{ suffix }}"
     # no changes required after this
     region: "{{ lookup('env','OS_REGION_NAME') }}"
 
   tasks:
-    - name: Register training machine hostname as variable
-      local_action: command hostname
-      register: localhost_name
-
     - name: Connect to the Catalyst Cloud
       os_auth:
 
@@ -201,14 +198,14 @@
         marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ item.value.instance_name }} docker swarm node"
       with_dict: "{{ instances }}"
 
-    - name: Add newly created hosts to /etc/hosts
+    - name: Add voting.app to /etc/hosts
       become: yes
       blockinfile:
         dest: /etc/hosts
         insertafter: EOF
         block: |
           {{ floating_ip_info.results[0].floating_ip.floating_ip_address }} voting.app
-        marker: "# {mark} ANSIBLE MANAGED BLOCK for {{ floating_ip_info.results[0].item.value.instance_name }} docker swarm node"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for docker voting.app"
 
 - name: Setup docker community edition on compute instances
   hosts: swarm-nodes
