@@ -61,34 +61,39 @@ check_debian_packages() {
   return 0;
 }
 
+# Install the required packages
 RUN_PACKAGE_MANAGER=true;
-# Ensure python-dev is installed.
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGES="python-dev python-setuptools python-pip gcc git libssl-dev libffi-dev"
+  PACKAGES="build-essentials gcc git libffi-dev libssl-dev python-dev python-pip python-setuptools"
   if check_debian_packages "$PACKAGES"; then
     RUN_PACKAGE_MANAGER=false;
   fi
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
-  PACKAGES="python-devel python-setuptools python-pip gcc git"
+  PACKAGES="gcc git python-devel python-pip python-setuptools"
 elif [[ -f /etc/solus-release ]]; then
   PKG_MANAGER="eopkg"
-  PACKAGES="python-devel python-setuptools pip gcc git"
+  PACKAGES="gcc git pip python-devel python-setuptools"
 else
   echo "Unknown Linux distribution."
   echo "Please ensure the packages $PACKAGES are installed before proceeding."
   echo "Press ENTER to continue."
   read
 fi
-
 if [ "$RUN_PACKAGE_MANAGER" = true ]; then
   case "$PKG_MANAGER" in
-    "apt"|"yum")
+    "apt")
       sudo $PKG_MANAGER update
       sudo $PKG_MANAGER -y install $PACKAGES
       ;;
+    "yum")
+      sudo $PKG_MANAGER update
+      sudo yum groupinstall 'Development Tools'
+      sudo $PKG_MANAGER -y install $PACKAGES
+      ;;
     "eopkg")
+      sudo eopkg it -c system.devel
       sudo $PKG_MANAGER install $PACKAGES
       ;;
   esac
