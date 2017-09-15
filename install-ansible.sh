@@ -15,9 +15,13 @@ help() {
   echo "-h, --help                       prints help information"
 }
 
+
 ################################################################################
 # Main()
 ################################################################################
+
+# Set Ansible python virtual environment name
+ANSIBLE_VENV="ansible-venv"
 
 # Parse command line arguments
 VERSION="stable"
@@ -44,32 +48,10 @@ while [ $# -ge 1 ]; do
   shift
 done
 
-# Set Ansible python virtual environment name
-ANSIBLE_VENV="ansible-venv"
-
-# check if we already have ansible installed when installing the stable version
-# abort or delete depending on the version we have installed
-if [[ "$VERSION" == "stable" ]]; then
-  ANSIBLE_VENV_BIN="$PWD/$ANSIBLE_VENV/bin/ansible"
-  if [[ -f $ANSIBLE_VENV_BIN ]]; then
-    # this may or may not be the latest stable version of ansible
-    STABLE_VERSION="2.1.1.0"
-    CURRENT_VERSION=$( $ANSIBLE_VENV_BIN --version | awk '/^ansible/{ print $2 }' )
-    if [ "${CURRENT_VERSION//.}" -lt "${STABLE_VERSION//.}" ]; then
-      echo "Deleting your install of Ansible $CURRENT_VERSION as a newer stable version is available"
-      rm -r "$PWD/$ANSIBLE_VENV"
-    else
-      echo "Aborting as Ansible $CURRENT_VERSION is already installed at $ANSIBLE_VENV_BIN"
-      exit 1
-    fi
-  fi
-fi
-
 echo "Installing $VERSION version of Ansible"
 
 check_debian_packages() {
   PACKAGES=$1
-
   for package in $PACKAGES; do
     dpkg-query -Wf'${db:Status-abbrev}' $package 2>/dev/null | grep -q '^i'
     if [ $? != 0 ]; then
@@ -90,11 +72,26 @@ if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
   PACKAGES="python-devel python-setuptools python-pip gcc git"
+elif [[ -f /etc/solus-release ]]; then
+  PKG_MANAGER="eopkg"
+  PACKAGES="python-devel python-setuptools pip gcc git"
+else
+  echo "Unknown Linux distribution."
+  echo "Please ensure the packages $PACKAGES are installed before proceeding."
+  echo "Press ENTER to continue."
+  read
 fi
 
 if [ "$RUN_PACKAGE_MANAGER" = true ]; then
-    sudo $PKG_MANAGER update
-    sudo $PKG_MANAGER -y install $PACKAGES
+  case "$PKG_MANAGER" in
+    "apt"|"yum")
+      sudo $PKG_MANAGER update
+      sudo $PKG_MANAGER -y install $PACKAGES
+      ;;
+    "eopkg")
+      sudo $PKG_MANAGER install $PACKAGES
+      ;;
+  esac
 fi
 
 # Ensure Python virtualenv and pip are installed.
@@ -146,10 +143,7 @@ fi
 # https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
 # This only runs on ubuntu 14.04, enable this for other distros as required
 if lsb_release -r -s | grep -q '14.04'; then
-  if ! pip install pyopenssl ndg-httpsclient pyasn1; then
-    echo "Could not install extra python packages on 14.04."
-    exit 1
-  fi
+  pip install pyopenssl ndg-httpsclient pyasn1
 fi
 
 # Install the selected version of Ansible.
@@ -179,13 +173,6 @@ fi
 # Install the shade library and the OpenStack client libraries.
 if ! pip install shade; then
   echo "Could not install the OpenStack client tools and shade"
-  exit 1
-fi
-
-# Install dnspython so we can do opendns lookups
-# this lets us create better default security group rules
-if ! pip install dnspython; then
-  echo "Could not install dnspython"
   exit 1
 fi
 
