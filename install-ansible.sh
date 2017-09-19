@@ -65,7 +65,7 @@ check_debian_packages() {
 RUN_PACKAGE_MANAGER=true;
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGES="build-essentials gcc git libffi-dev libssl-dev python-dev python-pip python-setuptools"
+  PACKAGES="build-essential gcc git libffi-dev libssl-dev python-dev python-pip python-setuptools"
   if check_debian_packages "$PACKAGES"; then
     RUN_PACKAGE_MANAGER=false;
   fi
@@ -88,12 +88,12 @@ if [ "$RUN_PACKAGE_MANAGER" = true ]; then
       sudo $PKG_MANAGER -y install $PACKAGES
       ;;
     "yum")
-      sudo $PKG_MANAGER update
-      sudo yum groupinstall 'Development Tools'
+      sudo $PKG_MANAGER -y update
+      sudo $PKG_MANAGER -y groupinstall 'Development Tools'
       sudo $PKG_MANAGER -y install $PACKAGES
       ;;
     "eopkg")
-      sudo eopkg it -c system.devel
+      sudo $PKG_MANAGER it -c system.devel
       sudo $PKG_MANAGER install $PACKAGES
       ;;
   esac
