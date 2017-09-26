@@ -184,6 +184,10 @@ fi
 echo
 echo "Ansible installed successfully!"
 echo
+echo "The following versions are installed in $PWD/$ANSIBLE_VENV:"
+echo
+"$PWD/$ANSIBLE_VENV/bin/pip" freeze | egrep 'ansible|shade|openstackclient'
+echo
 echo "To activate run the following command:"
 echo
 if [[ "$VERSION" == "stable" ]]; then
