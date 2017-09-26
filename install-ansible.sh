@@ -12,6 +12,7 @@ help() {
   echo ""
   echo "optional arguments:"
   echo "-v version, --version version    valid versions: latest, stable"
+  echo "-n venv-name, --name venv-name   override the default python virtual environment name"
   echo "-h, --help                       prints help information"
 }
 
@@ -36,6 +37,10 @@ while [ $# -ge 1 ]; do
       VERSION="$2"
       shift
       ;;
+    -n|--name)
+      ANSIBLE_VENV="$2"
+      shift
+      ;;
     -h|--help)
       help
       exit 0
@@ -48,7 +53,7 @@ while [ $# -ge 1 ]; do
   shift
 done
 
-echo "Installing $VERSION version of Ansible"
+echo "Installing $VERSION version of Ansible to $ANSIBLE_VENV python virtual environment"
 
 check_debian_packages() {
   PACKAGES=$1
