@@ -186,6 +186,13 @@ if ! pip install shade; then
   exit 1
 fi
 
+# Install dnspython so we can do opendns lookups
+# this lets us create better default security group rules
+if ! pip install dnspython; then
+  echo "Could not install dnspython"
+  exit 1
+fi
+
 echo
 echo "Ansible installed successfully!"
 echo
