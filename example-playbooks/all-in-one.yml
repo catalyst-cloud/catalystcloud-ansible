@@ -123,12 +123,20 @@
   sudo: yes
   tasks:
     - name: Install nginx web server
-      apt: pkg=nginx state=installed update_cache=true
+      apt:
+        pkg: nginx
+        state: installed
+        update_cache: true
       notify:
-        - Start nginx
+        - Restart nginx
+
     - name: Modify nginx index file
-      lineinfile: dest=/usr/share/nginx/html/index.html line="<p>Installed by ansible on {{ inventory_hostname }}</p>"
+      lineinfile:
+        dest: /usr/share/nginx/html/index.html
+        line: "<p>Installed by ansible on {{ inventory_hostname }}</p>"
 
   handlers:
-    - name: Start nginx
-      service: name=nginx state=started
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted

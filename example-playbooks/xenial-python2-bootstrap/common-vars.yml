@@ -1,0 +1,26 @@
+# Configurable varibles
+number_of_servers: 2
+name_prefix: 'xenial-'
+# Variables less likely to require configuration
+flavor: c1.c1r1
+image: ubuntu-16.04-x86_64
+instance_name_prefix: "{{ name_prefix }}server"
+keypair_name: "{{ name_prefix }}server-key"
+nginx_index_path: /var/www/html/index.nginx-debian.html
+private_network_name: private-net
+private_subnet_name: private-subnet
+region: "{{ lookup('env','OS_REGION_NAME') }}"
+remote_cidr_ssh: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
+remote_cidr_web: 0.0.0.0/0
+router_name: border-router
+security_group_name: "{{ name_prefix }}server-sg"
+ssh_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+subnet_first_octets: 10.0.0
+nameservers:
+  nz-por-1:
+    [202.78.247.197, 202.78.247.198, 202.78.247.199]
+  nz_wlg_2:
+    [202.78.240.213, 202.78.240.214, 202.78.240.215]
+  nz-hlz-1:
+    [202.78.244.85, 202.78.244.86, 202.78.244.87]
+
