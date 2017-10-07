@@ -27,10 +27,17 @@
     subnet_cidr: 10.0.0.0/24
     subnet_pool_start: 10.0.0.10
     subnet_pool_end: 10.0.0.200
-    nameservers: [202.78.247.197, 202.78.247.198, 202.78.247.199]
     router_name: border-router
     security_group_name: first-instance-sg
     keypair_name: first-instance-key
+    region: "{{ lookup('env','OS_REGION_NAME') }}"
+    nameservers:
+      nz-por-1:
+        [202.78.247.197, 202.78.247.198, 202.78.247.199]
+      nz_wlg_2:
+        [202.78.240.213, 202.78.240.214, 202.78.240.215]
+      nz-hlz-1:
+        [202.78.244.85, 202.78.244.86, 202.78.244.87]
 
   tasks:
     #- name: Fetch information about the Catalyst Cloud
@@ -65,7 +72,7 @@
         name: "{{ private_subnet_name }}"
         network_name: "{{ private_network_name }}"
         cidr: "{{ subnet_cidr }}"
-        dns_nameservers: "{{ nameservers }}"
+        dns_nameservers: "{{ nameservers[region] }}"
         allocation_pool_start: "{{ subnet_pool_start }}"
         allocation_pool_end: "{{ subnet_pool_end }}"
 
