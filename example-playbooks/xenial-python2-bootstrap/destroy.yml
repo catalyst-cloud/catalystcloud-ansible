@@ -1,0 +1,41 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# This playbook assumes an openstack rc file has been sourced
+
+- name: Delete linux server instances
+  hosts: localhost
+  vars:
+
+  tasks:
+    - name: Load the variables
+      include_vars: common-vars.yml
+
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Remove cloud server instances
+      os_server:
+        state: absent
+        name: "{{ instance_name_prefix }}-{{ item }}"
+      with_sequence: "start=1 end={{ number_of_servers }} format=%02x"
+
+    - name: Remove cloud server keypair
+      os_keypair:
+        state: absent
+        name: "{{ keypair_name }}"
+
+    - name: Remove cloud server router
+      os_router:
+        state: absent
+        name: "{{ router_name }}"
+
+    - name: Remove cloud server network
+      os_network:
+        state: absent
+        name: "{{ private_network_name }}"
+
+    - name: Remove cloud server security_group
+      os_security_group:
+        state: absent
+        name: "{{ security_group_name }}"

@@ -1,0 +1,148 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Deploy a cloud instance
+  hosts: localhost
+  connection: local
+
+  tasks:
+    - name: Load the variables
+      include_vars: common-vars.yml
+
+    - name: Connect to the Catalyst Cloud
+      os_auth:
+
+    - name: Create a network
+      os_network:
+        state: present
+        name: "{{ private_network_name }}"
+
+    - name: Create a subnet
+      os_subnet:
+        state: present
+        name: "{{ private_subnet_name }}"
+        network_name: "{{ private_network_name }}"
+        cidr: "{{ subnet_first_octets }}.0/24"
+        dns_nameservers: "{{ nameservers[region] }}"
+        allocation_pool_start: "{{ subnet_first_octets }}.10"
+        allocation_pool_end: "{{ subnet_first_octets }}.200"
+
+    - name: Create a router
+      os_router:
+        state: present
+        name: "{{ router_name }}"
+        network: public-net
+        interfaces:
+          - "{{ private_subnet_name }}"
+
+    - name: "Create the {{ security_group_name }} security group"
+      os_security_group:
+        state: present
+        name: "{{ security_group_name }}"
+        description: Network access for the example instance.
+
+    - name: Create a security group rule for SSH access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: "{{ item }}"
+      with_items: "{{ remote_cidr_ssh }}"
+
+    - name: Create a security group rule for HTTP access
+      os_security_group_rule:
+        state: present
+        security_group: "{{ security_group_name }}"
+        protocol: tcp
+        port_range_min: 80
+        port_range_max: 80
+        remote_ip_prefix: "{{ remote_cidr_web }}"
+
+    - name: Import an SSH keypair
+      os_keypair:
+        state: present
+        name: "{{ keypair_name }}"
+        public_key_file: "{{ ssh_public_key_file }}"
+
+    - name: Create compute instances
+      os_server:
+        state: present
+        name: "{{ instance_name_prefix }}-{{ item }}"
+        image: "{{ image }}"
+        key_name: "{{ keypair_name }}"
+        flavor: "{{ flavor }}"
+        meta: "group=group{{ item }}"
+        nics:
+          - net-name: "{{ private_network_name }}"
+        security_groups: "default,{{ security_group_name }}"
+        userdata: |
+          #cloud-config
+          timezone: Pacific/Auckland
+          locale: en_NZ.UTF-8
+          packages:
+            - python-minimal
+      with_sequence: "start=1 end={{ number_of_servers }} format=%02x"
+
+    - name: Assign a floating IP
+      os_floating_ip:
+        server: "{{ instance_name_prefix }}-{{ item }}"
+      with_sequence: "start=1 end={{ number_of_servers }} format=%02x"
+      register: floating_ip_info
+
+    - name: Remove floating ip from known hosts
+      known_hosts:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        state: absent
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Wait for SSH to come up on all instances
+      wait_for:
+        host: "{{ item.floating_ip.floating_ip_address }}"
+        port: 22
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Wait for cloud-init to complete
+      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.floating_ip.floating_ip_address }} if [ -f /var/lib/cloud/instance/boot-finished ]; then echo true; else echo false; fi"
+      register: test_result
+      until: test_result.stdout == 'true'
+      retries: 100
+      delay: 10
+      ignore_errors: yes
+      with_items: "{{ floating_ip_info.results }}"
+
+    - name: Add servers to server group
+      add_host:
+        name: "{{ item.floating_ip.floating_ip_address }}"
+        groups: xenial-servers
+        ansible_user: ubuntu
+        nginx_index_path: "{{ nginx_index_path }}"
+        host_name: "{{ item.invocation.module_args.server }}"
+      with_items: "{{ floating_ip_info.results }}"
+
+
+- name: Setup the servers
+  hosts: xenial-servers
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: Apt dist upgrade
+      apt:
+        upgrade: dist
+        autoremove: yes
+
+    - name: Add hostname to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ inventory_hostname }} {{ host_name }}"
+
+    - name: Install nginx web server
+      apt:
+        pkg: nginx
+
+    - name: Modify nginx index file
+      lineinfile:
+        dest: "{{ nginx_index_path }}"
+        line: "<p>Installed by ansible on {{ inventory_hostname }}</p>"
