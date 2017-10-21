@@ -1,0 +1,36 @@
+#!/usr/bin/env ansible-playbook
+---
+
+# https://docs.ansible.com/ansible/2.4/playbooks_reuse.html#dynamic-vs-static
+
+- name: Demonstrate the difference between Includes and Imports
+  hosts: localhost
+  vars:
+    foobar: false
+
+  tasks:
+    - name: Include extra tasks dynamically
+      import_tasks: included-dynamic-tasks.yaml
+      when: foobar
+
+    - name: Import extra tasks statically
+      include_tasks: imported-static-tasks.yaml
+      when: foobar
+
+    # ERROR! You cannot use loops on 'import_tasks' statements. You should use 'include_tasks' instead.
+    - name: Include extra tasks dynamically
+      import_tasks: included-dynamic-tasks.yaml
+
+    - name: Import extra tasks statically
+      include_tasks: imported-static-tasks.yaml
+      with_items:
+        - foo
+        - bar
+
+    - name: Include extra tasks dynamically with tag xyzzy
+      import_tasks: included-dynamic-tasks.yaml
+      tags: xyzzy
+
+    - name: Import extra tasks statically with tag xyzzy
+      include_tasks: imported-static-tasks.yaml
+      tags: xyzzy
