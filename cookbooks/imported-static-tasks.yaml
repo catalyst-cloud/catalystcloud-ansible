@@ -1,0 +1,22 @@
+- name: Imported static task 1
+  debug:
+    var: foobar
+
+- name: Imported static task 2
+  debug:
+    var: foobar
+
+- name: Imported static task 3
+  debug:
+    var: foobar
+
+- name: Imported static task 4
+  debug:
+    var: foobar
+  tags: xyzzy
+
+- name: Imported static task 5
+  debug:
+    var: foobar
+  tags: frobozz
+

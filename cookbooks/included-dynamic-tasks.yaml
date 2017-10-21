@@ -1,0 +1,22 @@
+- name: Included dynamic task 1
+  debug:
+    var: foobar
+
+- name: Included dynamic task 2
+  debug:
+    var: foobar
+
+- name: Included dynamic task 3
+  debug:
+    var: foobar
+
+- name: Included dynamic task 4
+  debug:
+    var: foobar
+  tags: xyzzy
+
+- name: Included dynamic task 5
+  debug:
+    var: foobar
+  tags: frobozz
+
