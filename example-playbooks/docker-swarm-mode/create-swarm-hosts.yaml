@@ -197,10 +197,14 @@
   hosts: swarm-nodes
   gather_facts: false
   become: yes
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
-    - raw: sudo apt-get update
+    - name: Update apt cache
+      raw: sudo apt-get update
 
-    - raw: which python || sudo apt-get install -y python-minimal && echo 'installed'
+    - name: Install python
+      raw: which python || sudo apt-get install -y python-minimal && echo 'installed'
       register: python
       changed_when: python.stdout == 'installed'
 
@@ -208,6 +212,8 @@
   hosts: swarm-nodes
   become: yes
   become_method: sudo
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Add all instances to /etc/hosts
       lineinfile:
