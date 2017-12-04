@@ -162,18 +162,6 @@
         state: absent
       with_dict: "{{ instances }}"
 
-    - name: Check if python2 is installed on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.value.instance_floating_ip }} [ -e /usr/bin/python2 ]"
-      register: python2_install_status
-      failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
-      changed_when: false
-      with_dict: "{{ instances }}"
-
-    - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no ubuntu@{{ item.item.value.instance_floating_ip }} sudo apt-get -y install python-minimal"
-      when: item.rc != 0
-      with_items: "{{ python2_install_status.results }}"
-
     - name: Add newly created hosts to groups
       add_host:
         name: "{{ item.value.instance_floating_ip }}"
@@ -203,6 +191,19 @@
         block: |
           {{ floating_ip_info.results[0].floating_ip.floating_ip_address }} voting.app
         marker: "# {mark} ANSIBLE MANAGED BLOCK for docker voting.app"
+
+
+- name: Install python on swarm nodes
+  hosts: swarm-nodes
+  become: yes
+  gather_facts: false
+  become: yes
+  tasks:
+    - raw: sudo apt-get update
+
+    - raw: which python || sudo apt-get install -y python-minimal && echo 'installed'
+      register: python
+      changed_when: python.stdout == 'installed'
 
 - name: Setup docker community edition on compute instances
   hosts: swarm-nodes
