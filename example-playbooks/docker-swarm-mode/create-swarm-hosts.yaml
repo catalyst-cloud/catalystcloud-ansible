@@ -195,7 +195,6 @@
 
 - name: Install python on swarm nodes
   hosts: swarm-nodes
-  become: yes
   gather_facts: false
   become: yes
   tasks:
