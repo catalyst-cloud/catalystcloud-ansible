@@ -20,11 +20,12 @@
     #os_password: password
     # Attributes used for launching the compute instance (required)
     image: ubuntu-16.04-x86_64
-    private_network_name: private-net
-    keypair_name: first-instance-key
-    instance_name: first-instance
+    prefix_name: ''
+    private_network_name: "{{ prefix_name }}private-net"
+    keypair_name: "{{ prefix_name }}first-instance-key"
+    instance_name: "{{ prefix_name }}first-instance"
     flavor: c1.c1r1
-    security_group_name: first-instance-sg
+    security_group_name: "{{ prefix_name }}first-instance-sg"
 
   tasks:
     #- name: Fetch information about the Catalyst Cloud
