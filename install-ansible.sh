@@ -181,7 +181,7 @@ else
 fi
 
 # Install the shade library and the OpenStack client libraries.
-if ! pip install shade; then
+if ! pip install shade python-openstackclient openstacksdk; then
   echo "Could not install the OpenStack client tools and shade"
   exit 1
 fi
@@ -198,7 +198,7 @@ echo "Ansible installed successfully!"
 echo
 echo "The following versions are installed in $PWD/$ANSIBLE_VENV:"
 echo
-"$PWD/$ANSIBLE_VENV/bin/pip" freeze | egrep 'ansible|shade|openstackclient'
+"$PWD/$ANSIBLE_VENV/bin/pip" freeze | egrep 'ansible|shade|openstackclient|openstacksdk'
 echo
 echo "To activate run the following command:"
 echo
