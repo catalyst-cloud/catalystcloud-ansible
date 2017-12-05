@@ -172,18 +172,6 @@
         state: absent
       with_dict: "{{ instances }}"
 
-    - name: Check if python2 is installed on compute instances
-      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.value.instance_floating_ip }} [ -e /usr/bin/python2 ]"
-      register: python2_install_status
-      failed_when: python2_install_status.rc != 0 and python2_install_status.rc != 1
-      changed_when: false
-      with_dict: "{{ instances }}"
-
-    - name: Install python2 on compute instances
-      command: "ssh -o StrictHostKeyChecking=no -i {{ ssh_key }} ubuntu@{{ item.item.value.instance_floating_ip }} sudo apt-get -y install python-minimal"
-      when: item.rc != 0
-      with_items: "{{ python2_install_status.results }}"
-
     - name: Add newly created hosts to groups
       add_host:
         name: "{{ item.value.instance_floating_ip }}"
@@ -211,6 +199,15 @@
   hosts: k8s-nodes
   become: yes
   become_method: sudo
+  gather_facts: False
+
+  pre_tasks:
+    - name: Install python-minimal for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+
+    - name: Gather facts
+      setup:
+
   tasks:
     - name: Add all instances to /etc/hosts
       lineinfile:
