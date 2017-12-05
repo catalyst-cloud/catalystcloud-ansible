@@ -22,14 +22,15 @@
     ssh_public_key: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
     # dig lookup requires dnspython
     restricted_cidr_range: "{{ lookup('dig', 'myip.opendns.com', '@resolver1.opendns.com') + '/32' | default('0.0.0.0/0', true) }}"
-    private_network_name: private-net
-    private_subnet_name: private-subnet
+    prefix_name: ''
+    private_network_name: "{{ prefix_name }}private-net"
+    private_subnet_name: "{{ prefix_name }}private-subnet"
+    router_name: "{{ prefix_name }}border-router"
+    security_group_name: "{{ prefix_name }}first-instance-sg"
+    keypair_name: "{{ prefix_name }}first-instance-key"
     subnet_cidr: 10.0.0.0/24
     subnet_pool_start: 10.0.0.10
     subnet_pool_end: 10.0.0.200
-    router_name: border-router
-    security_group_name: first-instance-sg
-    keypair_name: first-instance-key
     region: "{{ lookup('env','OS_REGION_NAME') }}"
     nameservers:
       nz-por-1:
