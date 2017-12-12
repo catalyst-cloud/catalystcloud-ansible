@@ -197,6 +197,8 @@
   become: yes
   become_method: sudo
   gather_facts: False
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
   pre_tasks:
     - name: Install python-minimal for Ansible
