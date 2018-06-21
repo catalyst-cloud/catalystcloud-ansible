@@ -1,0 +1,84 @@
+#!/usr/bin/env ansible-playbook
+#
+# This playbook will create an instance running a simple webserver listening on
+# port 80 and add it to a load balancer. You need to associate a floating ip to
+# the load balancer vip in order to access the webserver.
+#
+# Usage:
+# source openrc
+# ansible-playbook create_loadbalancer_playbook.yaml -e "image_id=a73aa806-2fc6-4ce0-8da6-566d3c6d9ea6 network_id=ab742b62-4644-4d8d-84a8-a694405e7258 subnet_id=37f743be-54d6-4a50-af4a-c629829aa140 key_name=lingxian_key flavor=c62db2ea-2ccd-49f0-9b88-307cdd3d6e0e security_groups=[lingxian_group]"
+# 
+---
+- name: Create loadbalancer and add a simple webserver
+  hosts: localhost
+
+  vars:
+    vm_name: lingxian_webserver
+    lb_name: lingxian_lb
+    image_id: 9136e86b-14d9-4127-b3dd-f1cdb18b0dc6
+    network_id: network
+    subnet_id: subnet
+    key_name: lingxian_pc
+    flavor: 2ba44887-5fe3-44cc-8bca-e2b60a206a66
+    security_groups:
+      - lingxian_group
+
+  tasks:
+    - name: Create VM running simple http server
+      os_server:
+        state: present
+        name: "{{ vm_name }}"
+        image: "{{ image_id }}"
+        key_name: "{{ key_name }}"
+        nics: net-id={{ network_id }}
+        flavor: "{{ flavor }}"
+        security_groups: "{{ security_groups }}"
+        terminate_volume: true
+        auto_ip: false
+        config_drive: yes
+        userdata: |
+          {%- raw -%}#!/bin/bash
+          OUTPUT="Welcome to my webserver\r"
+          LEN=${#OUTPUT}
+          while true; do echo -e "HTTP/1.1 200 OK\r\nContent-Length: ${LEN}\r\n\r\n${OUTPUT}" | sudo nc -l -p 80; done
+          {% endraw %}
+
+    - name: Gather facts about vm
+      os_server_facts:
+        server: "{{ vm_name }}"
+
+    - name: Create load balancer
+      shell: openstack loadbalancer create --name {{ lb_name }} --vip-subnet-id {{ subnet_id }} -f json
+      register: lb_info
+
+    - name: Wait for the load balancer to be active
+      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
+      register: lb_status
+      until: lb_status.stdout == "ACTIVE"
+      retries: 15
+      delay: 15
+
+    - name: Create listener
+      shell: openstack loadbalancer listener create --protocol HTTP --protocol-port 80 {{ (lb_info.stdout | from_json)['id'] }} -f value -c id
+      register: listener_id
+
+    - name: Wait for the load balancer to be active
+      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
+      register: lb_status
+      until: lb_status.stdout == "ACTIVE"
+      retries: 10
+      delay: 5
+
+    - name: Create pool
+      shell: openstack loadbalancer pool create --protocol HTTP --listener {{ listener_id.stdout }} --lb-algorithm ROUND_ROBIN -f value -c id
+      register: pool_id
+
+    - name: Wait for the load balancer to be active
+      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
+      register: lb_status
+      until: lb_status.stdout == "ACTIVE"
+      retries: 10
+      delay: 5
+
+    - name: Add vm to the pool
+      shell: openstack loadbalancer member create --address {{ openstack_servers[0].private_v4 }} --subnet-id {{ subnet_id }} --protocol-port 80 {{ pool_id.stdout }}
