@@ -6,7 +6,7 @@
 #
 # Usage:
 # source openrc
-# ansible-playbook create_loadbalancer_playbook.yaml -e "image_id=a73aa806-2fc6-4ce0-8da6-566d3c6d9ea6 network_id=ab742b62-4644-4d8d-84a8-a694405e7258 subnet_id=37f743be-54d6-4a50-af4a-c629829aa140 key_name=lingxian_key flavor=c62db2ea-2ccd-49f0-9b88-307cdd3d6e0e security_groups=[lingxian_group]"
+# ansible-playbook create_loadbalancer_playbook.yaml -e "image_id=a73aa806-2fc6-4ce0-8da6-566d3c6d9ea6 network_id=ab742b62-4644-4d8d-84a8-a694405e7258 subnet_id=37f743be-54d6-4a50-af4a-c629829aa140 key_name=lingxian_key flavor=c62db2ea-2ccd-49f0-9b88-307cdd3d6e0e security_groups=lingxian_group"
 # 
 ---
 - name: Create loadbalancer and add a simple webserver
