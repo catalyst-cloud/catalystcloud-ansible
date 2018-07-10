@@ -1,0 +1,42 @@
+#!/usr/bin/env ansible-playbook
+#
+# This playbook will add a new member to an existing load balancer pool.
+#
+# Usage:
+# source openrc
+# ansible-playbook add_member_to_lb_pool.yaml
+#
+# or if wanting to override variables in the playbook
+# ansible-playbook add_member_to_lb_pool.yaml -e "lb_member_name=member_1 member_ip=10.0.0.10"
+#
+---
+- name: Create loadbalancer and add a simple webserver
+  hosts: localhost
+
+  vars:
+    subnet_name: private-subnet
+    member_ip: 10.0.0.14
+    protocol_port: 80
+    lb_name: lb_test
+    lb_pool_name: http_pool
+    lb_member_name: member_2
+
+  tasks:
+
+    - name: add member to pool
+      shell: >
+        openstack loadbalancer member create
+        --name {{ lb_member_name }}
+        --subnet {{ subnet_name }}
+        --address {{ member_ip }}
+        --protocol-port {{ protocol_port }}
+        {{ lb_pool_name }}
+
+    - name: Retrieve current pool members
+      shell: openstack loadbalancer member list "{{ lb_pool_name }}" -f json
+      register: lb_pool_state
+
+    - name: List current members
+      debug:
+        msg: "pool member ==> {{ item.name }}"
+      with_items: "{{ lb_pool_state.stdout | from_json }}"
