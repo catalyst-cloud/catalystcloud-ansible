@@ -16,7 +16,7 @@
 # ansible-playbook drop_member_from_lb_pool.yaml -e "lb_pool_name=http_pool lb_member_name=member_1 pause_duration=2"
 #
 ---
-- name: Create loadbalancer and add a simple webserver
+- name: Gracefully remove a member from an existing loadbalancer pool
   hosts: localhost
 
   vars:

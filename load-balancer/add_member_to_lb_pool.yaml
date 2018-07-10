@@ -10,7 +10,7 @@
 # ansible-playbook add_member_to_lb_pool.yaml -e "lb_member_name=member_1 member_ip=10.0.0.10"
 #
 ---
-- name: Create loadbalancer and add a simple webserver
+- name: Add a member to an existing loadbalancer pool 
   hosts: localhost
 
   vars:
