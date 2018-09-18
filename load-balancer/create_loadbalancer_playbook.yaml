@@ -1,84 +1,106 @@
+cat <<EOF > create_loadbalancer_playbook.yaml
 #!/usr/bin/env ansible-playbook
 #
-# This playbook will create an instance running a simple webserver listening on
-# port 80 and add it to a load balancer. You need to associate a floating ip to
-# the load balancer vip in order to access the webserver.
+# This playbook works in Ansible 2.7.
+#
+# This playbook creates an instance running a simple webserver listening on
+# port 80 and add it to a load balancer. A floating ip is created and associated
+# with the load balancer automatically. The floating ip address can be found
+# in the `public_vip_address` field of the final output.
+#
+# Please refer to https://docs.ansible.com/ansible/devel/modules/os_loadbalancer_module.html#os-loadbalancer-module
+# for more detailed information about os_loadbalancer ansible module usage.
 #
 # Usage:
-# source openrc
-# ansible-playbook create_loadbalancer_playbook.yaml -e "image_id=a73aa806-2fc6-4ce0-8da6-566d3c6d9ea6 network_id=ab742b62-4644-4d8d-84a8-a694405e7258 subnet_id=37f743be-54d6-4a50-af4a-c629829aa140 key_name=lingxian_key flavor=c62db2ea-2ccd-49f0-9b88-307cdd3d6e0e security_groups=lingxian_group"
-# 
+# $ source openrc
+# $ ansible-playbook create_loadbalancer_playbook.yaml -e "vm_name=lingxian_webserver \
+#     image=ubuntu-14.04-x86_64 \
+#     network=lingxian_net \
+#     kaypair=lingxian_pc \
+#     flavor=c1.c1r1 \
+#     security_groups=lingxian_group \
+#     lb_name=lingxian_lb \
+#     vip_subnet=lingxian_subnet"
+#
 ---
 - name: Create loadbalancer and add a simple webserver
   hosts: localhost
 
   vars:
     vm_name: lingxian_webserver
-    lb_name: lingxian_lb
-    image_id: 9136e86b-14d9-4127-b3dd-f1cdb18b0dc6
-    network_id: network
-    subnet_id: subnet
-    key_name: lingxian_pc
-    flavor: 2ba44887-5fe3-44cc-8bca-e2b60a206a66
+    image: ubuntu-14.04-x86_64
+    flavor: c1.c1r1
+    network: lingxian_net
+    kaypair: lingxian_pc
     security_groups:
       - lingxian_group
+    lb_name: lingxian_lb
+    vip_subnet: lingxian_subnet
+    public_network: public-net
 
   tasks:
-    - name: Create VM running simple http server
+    - name: Create a simple webserver
       os_server:
-        state: present
         name: "{{ vm_name }}"
-        image: "{{ image_id }}"
-        key_name: "{{ key_name }}"
-        nics: net-id={{ network_id }}
-        flavor: "{{ flavor }}"
-        security_groups: "{{ security_groups }}"
-        terminate_volume: true
+        state: present
         auto_ip: false
-        config_drive: yes
+        flavor: "{{ flavor }}"
+        image: "{{ image }}"
+        key_name: "{{ kaypair }}"
+        network: "{{ network }}"
+        security_groups: "{{ security_groups }}"
+        config_drive: true
         userdata: |
-          {%- raw -%}#!/bin/bash
-          OUTPUT="Welcome to my webserver\r"
-          LEN=${#OUTPUT}
-          while true; do echo -e "HTTP/1.1 200 OK\r\nContent-Length: ${LEN}\r\n\r\n${OUTPUT}" | sudo nc -l -p 80; done
+          {%- raw -%}#!/usr/bin/python
+          from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+          import time
+          PORT_NUMBER = 80
+          class myHandler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.send_header('Content-type','text/html')
+                  self.end_headers()
+                  res_content = "Hello %s:%s - %s\n" % (self.client_address[0], self.client_address[1], time.strftime("%H:%M:%S", time.gmtime()))
+                  self.wfile.write(res_content)
+                  return
+          try:
+              server = HTTPServer(('', PORT_NUMBER), myHandler)
+              print 'Started httpserver on port ' , PORT_NUMBER
+              server.serve_forever()
+          except KeyboardInterrupt:
+              print 'shutting down the web server...'
+              server.socket.close()
           {% endraw %}
 
-    - name: Gather facts about vm
+    - name: Gather facts about webserver
       os_server_facts:
         server: "{{ vm_name }}"
 
     - name: Create load balancer
-      shell: openstack loadbalancer create --name {{ lb_name }} --vip-subnet-id {{ subnet_id }} -f json
+      os_loadbalancer:
+        name: "{{ lb_name }}"
+        state: present
+        vip_subnet: "{{ vip_subnet }}"
+        auto_public_ip: yes
+        public_network: "{{ public_network }}"
+        listeners:
+          - name: test_80
+            protocol: TCP
+            protocol_port: 80
+            pool:
+              name: test_80_pool
+              protocol: TCP
+              members:
+                - name: test_webserver
+                  address: "{{ openstack_servers[0] | json_query(query) }}"
+                  protocol_port: 80
+                  subnet: lingxian_subnet
+        wait: yes
+        timeout: 600
+      vars:
+        query: 'addresses.{{ network }}[?"OS-EXT-IPS:type"==`fixed`].addr | [0]'
       register: lb_info
 
-    - name: Wait for the load balancer to be active
-      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
-      register: lb_status
-      until: lb_status.stdout == "ACTIVE"
-      retries: 15
-      delay: 15
-
-    - name: Create listener
-      shell: openstack loadbalancer listener create --protocol HTTP --protocol-port 80 {{ (lb_info.stdout | from_json)['id'] }} -f value -c id
-      register: listener_id
-
-    - name: Wait for the load balancer to be active
-      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
-      register: lb_status
-      until: lb_status.stdout == "ACTIVE"
-      retries: 10
-      delay: 5
-
-    - name: Create pool
-      shell: openstack loadbalancer pool create --protocol HTTP --listener {{ listener_id.stdout }} --lb-algorithm ROUND_ROBIN -f value -c id
-      register: pool_id
-
-    - name: Wait for the load balancer to be active
-      shell: openstack loadbalancer show {{ (lb_info.stdout | from_json)['id'] }} -f value -c provisioning_status
-      register: lb_status
-      until: lb_status.stdout == "ACTIVE"
-      retries: 10
-      delay: 5
-
-    - name: Add vm to the pool
-      shell: openstack loadbalancer member create --address {{ openstack_servers[0].private_v4 }} --subnet-id {{ subnet_id }} --protocol-port 80 {{ pool_id.stdout }}
+    - name: Print load balancer information
+      debug: var=lb_info
+EOF
