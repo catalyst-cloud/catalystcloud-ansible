@@ -1,0 +1,38 @@
+#!/usr/bin/env ansible-playbook
+
+- name: Cookbook to demonstrate looping over an array contained in a dict and looking up in a second dict
+  hosts: localhost
+  vars:
+    instance_environment: testing
+    users:
+      royce:
+        ssh_authorized_key: ssh-rsa
+        full_name: Royce Church
+      jennifer:
+        ssh_authorized_key: ecdsa-sha2-nistp256
+        full_name: Jennifer Dalton
+      danielle:
+        ssh_authorized_key: ssh-rsa
+        full_name: Danielle Leblanc
+      yosef:
+        ssh_authorized_key: ssh-ed25519
+        full_name: Yosef Lane
+    users_for_environment:
+      production:
+        - jennifer
+        - danielle
+      staging:
+        - jennifer
+        - danielle
+        - yosef
+      testing:
+        - jennifer
+        - royce
+        - yosef
+        - danielle
+
+  tasks:
+    - name: "Output user info for {{ instance_environment }}"
+      debug:
+        msg: "{{ users[item]['full_name'] }} SSH Key is {{ users[item]['ssh_authorized_key'] }}"
+      loop: "{{ users_for_environment[instance_environment] | list }}"
