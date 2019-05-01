@@ -7,7 +7,7 @@ with the Catalyst Cloud (https://catalystcloud.nz).
 Would you like to learn more?
 
  - The documentation for the Catalyst Cloud can be found at:
-   http://docs.catalystcloud.io
+   http://docs.catalystcloud.nz
  - The documentation for Ansible can be found at:
    http://docs.ansible.com/ansible/index.html
 
@@ -25,6 +25,11 @@ environment and set up Ansible environment variables.
 
 Run `which ansible` and `ansible --version` to confirm the correct version of
 Ansible is being used.
+
+.. Note::
+
+  This installer no longer supports Python 2.x, as it has been deprecated and is nearing
+  end of life.
 
 Sample Playbooks
 ================

@@ -53,8 +53,6 @@ while [ $# -ge 1 ]; do
   shift
 done
 
-echo "Installing $VERSION version of Ansible to $ANSIBLE_VENV python virtual environment"
-
 check_debian_packages() {
   PACKAGES=$1
   for package in $PACKAGES; do
@@ -66,20 +64,36 @@ check_debian_packages() {
   return 0;
 }
 
+check_python3_exists() {
+  if [ `python -c 'import sys; print(list(sys.version_info)[:1][0])'` != 2 ]; then
+    which python3
+    if [ $? != 0 ]; then
+      echo -e "\nError: This script requires python3 in order to run.\n"
+      exit 1
+    fi
+  fi
+}
+
+# check python3 is available or exit.
+check_python3_exists
+
+echo "Installing $VERSION version of Ansible to $ANSIBLE_VENV python virtual environment"
+
 # Install the required packages
 RUN_PACKAGE_MANAGER=true;
 if [[ -f /etc/debian_version ]] || [[ -f /etc/lsb_release ]]; then
   PKG_MANAGER="apt"
-  PACKAGES="build-essential gcc git libffi-dev libssl-dev python-dev python-pip python-setuptools"
+  # PACKAGES="build-essential gcc git libffi-dev libssl-dev python-dev python-pip python-setuptools"
+  PACKAGES="build-essential gcc git libffi-dev libssl-dev python3-dev python3-pip python3-setuptools"
   if check_debian_packages "$PACKAGES"; then
     RUN_PACKAGE_MANAGER=false;
   fi
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
   PKG_MANAGER="yum"
-  PACKAGES="gcc git python-devel python-pip python-setuptools"
+  PACKAGES="gcc git python3-devel python3-pip python3-setuptools"
 elif [[ -f /etc/solus-release ]]; then
   PKG_MANAGER="eopkg"
-  PACKAGES="gcc git pip python-devel python-setuptools"
+  PACKAGES="gcc git pip3 python3-devel python3-setuptools"
 else
   echo "Unknown Linux distribution."
   echo "Please ensure the packages $PACKAGES are installed before proceeding."
@@ -126,8 +140,8 @@ if ! which virtualenv; then
   fi
 fi
 
-# Create and activate a python2 virtual environment for Ansible.
-if ! virtualenv --python=python2 "$ANSIBLE_VENV"; then
+# Create and activate a python3 virtual environment for Ansible.
+if ! virtualenv --python=python3 "$ANSIBLE_VENV"; then
   echo "Failed to create virtual environment for Ansible at current location."
   exit 1
 fi
@@ -145,15 +159,6 @@ fi
 if ! pip install -U setuptools; then
   echo "Could not update setuptools."
   exit 1
-fi
-
-# Installing theese modules fixes Python urllib3 SNIMissingWarning and InsecurePlatformWarning
-# when running the opestack clients
-# https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning.
-# https://urllib3.readthedocs.org/en/latest/security.html#snimissingwarning.
-# This only runs on ubuntu 14.04, enable this for other distros as required
-if lsb_release -r -s | grep -q '14.04'; then
-  pip install pyopenssl ndg-httpsclient pyasn1
 fi
 
 # Install the selected version of Ansible.
