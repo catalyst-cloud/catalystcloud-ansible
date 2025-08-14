@@ -76,7 +76,7 @@
     cf_account_api_token: "{{ lookup('env','CF_ACCOUNT_API_TOKEN') }}"
 
   tasks:
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: Create a network

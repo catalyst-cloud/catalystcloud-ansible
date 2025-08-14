@@ -9,7 +9,7 @@
     - name: Load the variables
       include_vars: common-vars.yml
 
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: Create a network

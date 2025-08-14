@@ -2,7 +2,7 @@
 ---
 
 # This playbook demonstrates the basic interaction between Ansible's OpenStack
-# cloud module and the Catalyst Cloud. Ansible will pick up the OpenStack
+# cloud module and Catalyst Cloud. Ansible will pick up the OpenStack
 # environment variables from the operating system if an OpenStack RC file is
 # sourced before running the playbook. Alternatively, you can specify the
 # OpenStack authentication variables and refer to them when using the os_auth
@@ -28,12 +28,12 @@
     security_group_name: "{{ prefix_name }}first-instance-sg"
 
   tasks:
-    #- name: Fetch information about the Catalyst Cloud
+    #- name: Fetch information about Catalyst Cloud
     #  os_client_config:
     #    clouds:
     #      - catalyst_cloud
 
-    # If you have sourced an OpenStack RC file, connecting to the Catalyst
+    # If you have sourced an OpenStack RC file, connecting to Catalyst
     # Cloud is as simple as running the os_auth module with no additional
     # parameters.
     - name: Connect to the Catalyst Cloud
@@ -41,7 +41,7 @@
 
     # If you have not sourced an OpenStack RC file, you will need to pass a few
     # mandatory authentication attributes, as demonstrated below.
-    #- name: Connect to the Catalyst Cloud
+    #- name: Connect to Catalyst Cloud
     #  os_auth:
     #    auth:
     #      auth_url: "{{ os_auth_url }}"
@@ -54,7 +54,7 @@
     #- name: Print the service catalog as debug information
     #  debug: var=service_catalog
 
-    - name: Create a compute instance on the Catalyst Cloud
+    - name: Create a compute instance on Catalyst Cloud
       os_server:
         # Since we have authenticated on the previous task, there is not need
         # to authenticate again on this task. However, if this was the only
