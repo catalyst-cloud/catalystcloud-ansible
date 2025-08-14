@@ -42,7 +42,7 @@
         [202.78.244.85, 202.78.244.86, 202.78.244.87]
 
   tasks:
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: Create a network

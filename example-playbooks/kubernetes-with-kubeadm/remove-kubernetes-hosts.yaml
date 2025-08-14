@@ -20,7 +20,7 @@
       - instance_name: worker4
 
   tasks:
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: Remove k8s node compute instances

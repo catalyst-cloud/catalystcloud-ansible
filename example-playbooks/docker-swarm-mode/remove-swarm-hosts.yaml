@@ -26,7 +26,7 @@
 
   tasks:
 
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: Remove swarm node compute instances

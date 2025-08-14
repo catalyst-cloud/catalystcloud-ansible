@@ -2,11 +2,11 @@ Catalyst Cloud Ansible Templates
 ================================
 
 This repository provides sample playbooks that demonstrate how to use Ansible
-with the Catalyst Cloud (https://catalystcloud.nz).
+with Catalyst Cloud (https://catalystcloud.nz).
 
 Would you like to learn more?
 
- - The documentation for the Catalyst Cloud can be found at:
+ - The documentation for Catalyst Cloud can be found at:
    http://docs.catalystcloud.nz
  - The documentation for Ansible can be found at:
    http://docs.ansible.com/ansible/index.html
@@ -15,7 +15,7 @@ Installing Ansible
 ==================
 
 The `install-ansible.sh` script helps you to easily install Ansible (latest or
-stable) and the dependencies required to interact with the Catalyst Cloud
+stable) and the dependencies required to interact with Catalyst Cloud
 (OpenStack client tools, [shade](http://docs.openstack.org/infra/shade/)) in a
 virtual environment.
 
@@ -37,6 +37,6 @@ Sample Playbooks
 The `cookbooks` directory provides code examples that demonstrate how to
 perform common operation with Ansible, such as loops, dict lookups, etc.
 
-All other directories are named after specific services provided by the
+All other directories are named after specific services provided by
 Catalyst Cloud and illustrate how to use them via Ansible.
 

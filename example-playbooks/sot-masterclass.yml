@@ -24,7 +24,7 @@
     flavor: c1.c1r1
 
   tasks:
-    - name: Connect to the Catalyst Cloud
+    - name: Connect to Catalyst Cloud
       os_auth:
 
     - name: "Create the {{ security_group_name }} security group"
